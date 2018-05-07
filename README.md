@@ -11,23 +11,40 @@ Continuous Integration Pipeline which tests and deploys pull requests to [*WishB
 
 ### Environment
 #### Docker
-*WishBuilderCI* requires [Docker](https://docker.com) to test code in an environement container. The "wishbuilder" image used to create each container can be pulled from the docker hub with this command:
+*WishBuilderCI* requires [Docker](https://docker.com) to test code in an environment container. The "wishbuilder" image used to create each container can be pulled from the docker hub with this command:
 ```bash
 docker pull kimballer/wishbuilder
 ```
-#### Directory
-*WishBuilderCI* is executed through a bash script, all code must be in a directory which contains the following items to run correctly:
+#### App Structure
 
-- Directories:
-    - CompleteDataSets - the output data files (data.tsv.gz & metadata.tsv.gz) are put here if testing is successful
-    - Descriptions - the output description file (<font>description.<font>md) is put here.
-    - gh-pages - contains a cloned *WishBuilder* repository on the "gh-pages" branch.
-    - WishBuilder - is a cloned *WishBuilder* repository on the "master" branch.
-    - StatusReports - the status report (status.<font>md) created during testing is put here.
-- Files:
-    - checkWishBuilder.<font>sh
-    - checkWishBuilder.<font>py
-    - .prhistory - a list of pull requests which have already been tested by *WishBuilderCI*
+
+- /app/ (WB_DIRECTORY)
+    - WishBuilder-CLI (This repository)
+        - all files in repository plus these additional files (in .gitignore):
+        - testing/ (location for downloading and testing pull requests)
+        - private.py (contains private strings)
+        - history.sql (This file will autogenerate if it doesn't exist)
+    - RawDatasets/
+        - Dataset1/
+            - data.tsv.gz
+            - metadata.tsv.gz
+            - config.yaml
+            - description.md
+        - Dataset2
+            - ...
+        - ...
+    - GeneyDatasets/
+        - Dataset1/
+            - data.h5
+            - metadata.sql
+            - metadata.json
+            - description.json
+        - Dataset2/
+            - ...
+        - ...
+    - GeneyTypeConverter/
+        - ([Type Converter Repository](https://github.com/zence/GeneyTypeConverter))
+
 ### Execution (/bin/bash checkWishBuilder.<font>sh)
 1. checkWishBuilder.<font>sh updates the git repositories and runs the wishbuilder container
 1. wishbuilder Container executes "python checkWishBuilder.<font>py"

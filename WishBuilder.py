@@ -4,10 +4,10 @@ from SqliteDao import SqliteDao
 from private import GH_TOKEN
 import shutil
 import time
-from multiprocessing import Pool, Queue, Process
+from multiprocessing import Process
 
-sql_dao = SqliteDao(SQLITE_FILE)
-git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
+sql_dao = None
+git_dao = None
 
 
 def check_history():
@@ -24,16 +24,18 @@ def check_history():
 
 
 def get_new_prs():
-    history = sql_dao.get_all()
+    full_history = sql_dao.get_all()
     prs = git_dao.get_prs()
-    new_prs = []
+    if not full_history:
+        return prs
+    new_pulls = []
     for pr in prs:
-        if pr.pr in history.keys():
-            if pr.sha not in history[pr.pr]:
-                new_prs.append(pr)
+        if pr.pr in full_history.keys():
+            if pr.sha not in full_history[pr.pr]:
+                new_pulls.append(pr)
         else:
-            new_prs.append(pr)
-    return new_prs
+            new_pulls.append(pr)
+    return new_pulls
 
 
 def test(pr: PullRequest):
@@ -104,7 +106,23 @@ def simulate_test(pr: PullRequest):
     print("finished {}".format(pr.branch), flush=True)
 
 
+def setup():
+    os.chdir(WB_DIRECTORY)
+    required_directories = [RAW_DATA_STORAGE, GENEY_DATA_LOCATION, TESTING_LOCATION]
+    if not os.path.exists(PRIVATE_DATA):
+        raise Exception("private.py does not exist")
+    for path in required_directories:
+        if not os.path.exists(path):
+            os.makedirs(path)
+    if not os.path.exists("/".join(GENEY_CONVERTER.split('/')[:-1])):
+        print("Geney Type Converter is  being cloned...")
+        os.system("git clone git@github.com:zence/GeneyTypeConverter.git")
+
+
 if __name__ == '__main__':
+    setup()
+    sql_dao = SqliteDao(SQLITE_FILE)
+    git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
     processes = []
     queue = []
     history = []

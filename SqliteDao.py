@@ -2,12 +2,15 @@ import sqlite3
 import json
 from PullRequest import PullRequest
 from Constants import SQLITE_FILE
+import os
 
 
 class SqliteDao:
     def __init__(self, db_file):
-        self.__con = sqlite3.connect(db_file)
         self.__file = db_file
+        if not os.path.exists(db_file):
+            self.create_db()
+        self.__con = sqlite3.connect(db_file)
         self.close()
 
     def __enter__(self):

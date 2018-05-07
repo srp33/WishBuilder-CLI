@@ -1,6 +1,6 @@
 MAX_NUM_PROCESSES = 4
 REPO_URL = 'https://api.github.com/repos/srp33/WishBuilder/'
-WB_DIRECTORY = '/Users/kimballhill/WishBuilder/'
+WB_DIRECTORY = '/app/'
 PRIVATE_DATA = WB_DIRECTORY + 'WishBuilder-CLI/private.py'
 SQLITE_FILE = WB_DIRECTORY + 'WishBuilder-CLI/history.sql'
 TESTING_LOCATION = WB_DIRECTORY + 'WishBuilder-CLI/testing/'

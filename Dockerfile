@@ -17,7 +17,7 @@ RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN apt-get install -y curl grep sed zip unzip python python3-pip sudo python3-yaml
+RUN apt-get install -y curl grep sed zip unzip python python3-pip sudo python3-yaml tzdata
 RUN pip3 install requests
 RUN pip install fastnumbers
 RUN pip3 install h5py

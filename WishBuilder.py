@@ -39,6 +39,7 @@ def get_new_prs():
 
 
 def test(pr: PullRequest):
+    print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
     start = time.time()
     if pr.branch not in os.listdir(TESTING_LOCATION):
         os.mkdir('{}{}'.format(TESTING_LOCATION, pr.branch))
@@ -58,6 +59,7 @@ def test(pr: PullRequest):
             pr.set_updated()
         else:
             # Download Files from Github and put them in the testing directory
+            download_urls.extend(git_dao.get_existing_files(pr.branch, files))
             for file in download_urls:
                 git_dao.download_file(file, TESTING_LOCATION)
             # Run tests
@@ -95,6 +97,7 @@ def test(pr: PullRequest):
 def cleanup(pr):
     shutil.rmtree("{}{}".format(TESTING_LOCATION, pr.branch))
     pr.send_report(recipient='hillkimball@gmail.com')
+    # pr.send_report()
     print("Done!")
 
 

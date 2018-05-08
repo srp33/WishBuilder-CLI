@@ -1,7 +1,8 @@
 import requests
 from PullRequest import PullRequest
 import os
-from Constants import REPO_URL
+from Constants import REPO_URL, TESTING_LOCATION
+from private import GH_TOKEN
 
 
 class GithubDao:
@@ -9,12 +10,18 @@ class GithubDao:
         if repo_url[-1] != '/':
             repo_url += '/'
         self.repo_url = repo_url
-        self.__token = token
+        self.token = token
+        if len(token) > 0:
+            self.head = {'Authorization': 'token {}'.format(token)}
+        else:
+            self.head = None
 
     def get_prs(self):
         url = self.repo_url + 'pulls'
-        payload = requests.get(url).json()
+        payload = requests.get(url, headers=self.head).json()
         prs = []
+        if type(payload) == 'dict':
+            return []
         for i in range(len(payload)):
             branch = payload[i]['head']['ref']
             pr_id = payload[i]['id']
@@ -27,7 +34,7 @@ class GithubDao:
 
     def get_files_changed(self, pr: PullRequest):
         url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
-        payload = requests.get(url).json()
+        payload = requests.get(url, headers=self.head).json()
         files = []
         download_urls = []
         for i in range(len(payload)):
@@ -37,7 +44,7 @@ class GithubDao:
 
     def check_files(self, pr: PullRequest):
         url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
-        payload = requests.get(url).json()
+        payload = requests.get(url, headers=self.head).json()
         files = []
         bad_files = []
         download_urls = []
@@ -65,7 +72,7 @@ class GithubDao:
 
     def merge(self, pr: PullRequest) -> bool:
         request = {'sha': pr.sha}
-        url = '{repo}pulls/{num}/merge?access_token={token}'.format(repo=self.repo_url, num=pr.pr, token=self.__token)
+        url = '{repo}pulls/{num}/merge?access_token={token}'.format(repo=self.repo_url, num=pr.pr, token=self.token)
         response = requests.put(url, json=request)
         if 'Pull Request successfully merged' in response.json()['message']:
             print('Pull Request #{num}, Branch \"{branch}\", has been merged to WishBuilder Master branch'.format(
@@ -78,7 +85,7 @@ class GithubDao:
 
     def get_email(self, sha: str) -> str:
         url = '{}git/commits/{}'.format(self.repo_url, sha)
-        response = requests.get(url).json()
+        response = requests.get(url, headers=self.head).json()
         email = response['author']['email']
         return email
 
@@ -86,21 +93,44 @@ class GithubDao:
         if not full_url:
             url = self.repo_url + url
         if request_type == 'get':
-            response = requests.get(url).json()
+            response = requests.get(url, headers=self.head).json()
         else:
-            response = requests.put(url).json()
+            response = requests.put(url, headers=self.head).json()
         return response
 
-    @staticmethod
-    def download_file(url: str, destination: str= './'):
+    def get_contents(self, path):
+        if not path[0] == '/':
+            path = "/{}".format(path)
+        url = "{}contents{}".format(self.repo_url, path)
+        response = requests.get(url, headers=self.head).json()
+        return response
+
+    def get_existing_files(self, directory, files):
+        response = self.get_contents(directory)
+        if type(response) is dict:
+            if response['message']:
+                return []
+        existing_files = []
+        for i in range(len(response)):
+            if response[i]['path'] not in files:
+                if response[i]['type'] == 'dir':
+                    existing_files.extend(self.get_existing_files(response[i]['path'], files))
+                elif response[i]['type'] == 'file':
+                    existing_files.append(response[i]['download_url'])
+        return existing_files
+
+    def download_file(self, url: str, destination: str= './'):
         split_url = url.split('/')
-        i = split_url.index('raw')
+        if 'raw' in split_url:
+            i = split_url.index('raw')
+        else:
+            i = split_url.index('master') - 1
         local_path = destination + "/".join(split_url[i+2:-1])
         local_filename = destination + "/".join(split_url[i+2:])
         if not os.path.exists(local_path):
             os.makedirs(local_path)
         # local_filename = destination + url.split('/')[-1]
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, headers=self.head)
         with open(local_filename, 'wb') as fs:
             for chunk in response.iter_content(chunk_size=1024):
                 if chunk:
@@ -109,16 +139,13 @@ class GithubDao:
 
 
 if __name__ == '__main__':
-    dao = GithubDao(REPO_URL, '')
-    # print(dao.make_request('pulls/351/files'))
-    # print(dao.download_file('https://github.com/srp33/WishBuilder/raw/18172c2dcfaa81fa5ef116ed86fbfd04a067f863/TCGA_BreastCancer_DNAMethylation/cleanup.sh'))
-    url = REPO_URL + 'pulls'.format(351)
-    payload = requests.get(url).json()
-    print(payload[0]['head']['sha'])
-    # files = []
-    # bad_files = []
-    # download_urls = []
-    # for i in range(len(payload)):
-    #     files.append(payload[i]['filename'])
-    #     download_urls.append(payload[i]['raw_url'])
-    # print(download_urls)
+    dao = GithubDao(REPO_URL, GH_TOKEN)
+    prs = dao.get_prs()
+    download_urls = {}
+    for pull in prs:
+        a, b, download_urls[pull.pr] = dao.check_files(pull)
+    print(download_urls[360])
+    download_urls[360] = []
+    download_urls[360].extend(dao.get_existing_files("TCGA_BreastCancer_RPPA", ['TCGA_BreastCancer_RPPA/download.sh']))
+    for file in download_urls[360]:
+        dao.download_file(file, TESTING_LOCATION)

@@ -2,6 +2,6 @@ version: '2'
 
 services:
   wb-container:
-    image: "kimballer/wishbuilderci"
+    image: "srp33/wishbuilder-cli"
     volumes:
       - "${WB_PATH}:/app"

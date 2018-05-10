@@ -17,11 +17,8 @@ RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN apt-get install -y curl grep sed zip unzip python python3-pip sudo python3-yaml tzdata
-RUN pip3 install requests
+RUN apt-get install -y zip unzip sudo tzdata
+RUN conda install -y numpy=1.13.0 hdf5=1.10.1 xlrd=1.1.0 r-tidyverse=1.2.1 markdown requests h5py yaml pip
 RUN pip install fastnumbers
-RUN pip3 install h5py
-RUN pip3 install pandas
-RUN conda install -y numpy=1.13.0 hdf5=1.10.1 xlrd=1.1.0 r-tidyverse=1.2.1 markdown
 
 CMD ["python3", "/app/WishBuilder-CLI/WishBuilder.py"]

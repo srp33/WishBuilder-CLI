@@ -32,6 +32,13 @@ class GithubDao:
             prs.append(pr)
         return prs
 
+    def get_pr(self, pr_num):
+        all_prs = self.get_prs()
+        for pr in all_prs:
+            if pr.pr == pr_num:
+                return pr
+        return None
+
     def get_files_changed(self, pr: PullRequest):
         url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
         payload = requests.get(url, headers=self.head).json()
@@ -140,12 +147,9 @@ class GithubDao:
 
 if __name__ == '__main__':
     dao = GithubDao(REPO_URL, GH_TOKEN)
-    prs = dao.get_prs()
-    download_urls = {}
-    for pull in prs:
-        a, b, download_urls[pull.pr] = dao.check_files(pull)
-    print(download_urls[360])
-    download_urls[360] = []
-    download_urls[360].extend(dao.get_existing_files("TCGA_BreastCancer_RPPA", ['TCGA_BreastCancer_RPPA/download.sh']))
-    for file in download_urls[360]:
-        dao.download_file(file, TESTING_LOCATION)
+    test_pr = dao.get_pr(358)
+    if test_pr:
+        files, download_urls = dao.get_files_changed(test_pr)
+        download_urls.extend(dao.get_existing_files(test_pr.branch, files))
+        for file in download_urls:
+            print(file)

@@ -39,6 +39,7 @@ def get_new_prs():
 
 
 def test(pr: PullRequest):
+    cwd = os.getcwd()
     print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
     start = time.time()
     if pr.branch not in os.listdir(TESTING_LOCATION):
@@ -62,6 +63,7 @@ def test(pr: PullRequest):
             download_urls.extend(git_dao.get_existing_files(pr.branch, files))
             for file in download_urls:
                 git_dao.download_file(file, TESTING_LOCATION)
+            os.chdir(TESTING_LOCATION + pr.branch)
             # Run tests
             test_folder(pr)
             test_config(pr)
@@ -91,6 +93,7 @@ def test(pr: PullRequest):
     sql_dao.update(pr)
     if pr.passed:
         geney_convert(pr)
+    os.chdir(cwd)
     cleanup(pr)
 
 

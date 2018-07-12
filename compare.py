@@ -1,12 +1,28 @@
 import gzip
+from Constants import *
+import pandas as pd
+
+
+def one_feature(file):
+    df = pd.read_csv(file, sep='\t')
+    if len(df.columns.values) > 2:
+        return True
+    else:
+        return False
 
 
 # Are all test files in correct format?
-def check_test_files(test_file_list, min_samples, min_features, min_test_cases):
-    report = "### Testing Test Files:\n\n"
+def check_test_files(test_file_list):
+    min_samples = MIN_SAMPLES
+    min_test_cases = MIN_TEST_CASES
+    report = ''
     passed = True
 
     for file in test_file_list:
+        min_features = MIN_FEATURES
+        data_file = '{}.gz'.format(file.lstrip('test_'))
+        if one_feature(data_file):
+            min_features = 1
 
         row_count = 0
         samples = {}
@@ -15,10 +31,11 @@ def check_test_files(test_file_list, min_samples, min_features, min_test_cases):
 
         with open(file, 'r') as test_file:
             headers = test_file.readline().rstrip('\n').split('\t')
-            # Make sure there are three columns named Sample, Variable, Value
+            # Make sure there are three columns named SampleID, Variable, Value
             passed, temp_report = check_test_columns(headers, file)
             if passed:
-                report += "CHECK_MARK\t\"{0}\" has three columns with the correct headers\n\n".format(file)
+                report += "{check_mark}\t\"{0}\" has three columns with the correct headers\n\n"\
+                    .format(file, check_mark=CHECK_MARK)
             else:
                 report += temp_report
 
@@ -27,70 +44,78 @@ def check_test_files(test_file_list, min_samples, min_features, min_test_cases):
                 data = line.rstrip('\n').split('\t')
                 report += "number of columns is {}\n".format(len(data))
                 if len(data) is not 3 and len(data) is not 0:  # Make sure each row has exactly three columns
-                    report += "RED_X\tRow {0} of \"{1}\" should contain exactly three columns\n\n".format(row_count, file)
+                    report += "{red_x}\tRow {0} of \"{1}\" should contain exactly three columns\n\n"\
+                        .format(row_count, file, red_x=RED_X)
                     passed = False
                 elif len(data) != 0:  # Add data to a map
                     if data[0] not in samples.keys():
-                        samples[data[0]] = data[1] + data[2]
+                        samples[data[0]] = [data[1] + data[2]]
                     else:
                         if data[1] + data[2] not in samples[data[0]]:
                             samples[data[0]].append(data[1]+data[2])
 
         if len(samples.keys()) < min_samples:  # Make sure there are enough unique sample IDs to test
-            report += "RED_X\t\"{0}\" does not contain enough unique samples to test (min: {1})\n\n".format(file, min_samples)
+            report += "{red_x}\t\"{0}\" does not contain enough unique samples to test (min: {1})\n\n"\
+                .format(file, min_samples, red_x=RED_X)
             passed = False
         else:
-            report += "CHECK_MARK\t\"{0}\" contains enough unique samples to test\n\n".format(file)
+            report += "{check_mark}\t\"{0}\" contains enough unique samples to test\n\n"\
+                .format(file, check_mark=CHECK_MARK)
 
         for sample in samples:  # Make sure each sample has enough features to test
             if len(samples[sample]) < min_features:
-                report += "RED_X\t\Sample \"{0}\" does not have enough features to test (min: {1})\n\n".format(sample, min_features)
+                report += "{red_x}\t\SampleID \"{0}\" does not have enough features to test (min: {1})\n\n"\
+                    .format(sample, min_features, red_x=RED_X)
                 passed = False
 
         if passed:
-            report += "CHECK_MARK\t\"{0}\" has enough features to test (min: {1})\n\n".format(file, min_features)
+            report += "{check_mark}\t\"{0}\" has enough features to test (min: {1})\n\n"\
+                .format(file, min_features, check_mark=CHECK_MARK)
 
         if row_count == 0:  # Check if file is empty
-            report += "RED_X\t\"{0}\" is empty.\n\n".format(file)
+            report += "{red_x}\t\"{0}\" is empty.\n\n".format(file, red_x=RED_X)
             passed = False
         elif row_count < min_test_cases:  # Check if there are enough test cases
-            report += "RED_X\t\"{0}\" does not contain enough test cases ({1}; min: {2})\n\n".format(file, row_count, min_test_cases)
+            report += "{red_x}\t\"{0}\" does not contain enough test cases ({1}; min: {2})\n\n"\
+                .format(file, row_count, min_test_cases, red_x=RED_X)
             passed = False
         else:
-            report += "CHECK_MARK\t\"{0}\" contains enough test cases ({1}; min: {2})\n\n".format(file, row_count, min_test_cases)
+            report += "{check_mark}\t\"{0}\" contains enough test cases ({1}; min: {2})\n\n"\
+                .format(file, row_count, min_test_cases, check_mark=CHECK_MARK)
 
     if passed:
         report += "#### Results: PASS\n\n\n"
     else:
         report += "#### Results: FAIL\n\n\n"
 
-    return report
+    return report, passed
 
 
-# Check if the column headers of the test file are "Sample", "Variable", and "Value"
+# Check if the column headers of the test file are "SampleID", "Variable", and "Value"
 def check_test_columns(col_headers, file):
     passed = True
     report = ""
 
     if len(col_headers) != 3:  # Make sure there are exactly three columns
-        report += "RED_X\t\"{0}\" does not contain three columns\n\n".format(file)
+        report += "{red_x}\t\"{0}\" does not contain three columns\n\n".format(file, red_x=RED_X)
         passed = False
     else:  # Check the names of each column
-        if col_headers[0] != "Sample":
-            report += "RED_X\tFirst column of \"{0}\" must be titled \"Sample\"\n\n'".format(file)
+        if col_headers[0] != "SampleID":
+            report += "{red_x}\tFirst column of \"{0}\" must be titled \"SampleID\"\n\n'".format(file, red_x=RED_X)
             passed = False
         if col_headers[1] != "Variable":
-            report += "RED_X\tSecond column of \"{0}\" must be titled \"Variable\"\n\n".format(file)
+            report += "{red_x}\tSecond column of \"{0}\" must be titled \"Variable\"\n\n".format(file, red_x=RED_X)
             passed = False
         if col_headers[2] != "Value":
-            report += "RED_X\tThird column of \"{0}\" must be titled \"Value\"\n\n')".format(file)
+            report += "{red_x}\tThird column of \"{0}\" must be titled \"Value\"\n\n')".format(file, red_x=RED_X)
             passed = False
 
     return passed, report
 
 
 def compare_files(data_file_list, test_file_list):
-    report = "### Comparing Files:\n\n"
+    passed_all = True
+    report = "#### Comparing Files:\n\n"
 
     for file in data_file_list:
 
@@ -107,7 +132,7 @@ def compare_files(data_file_list, test_file_list):
         with gzip.open(file, 'r') as data_file:
             # ----------------------------------------------------------------------------------------------------------
             for test in test_file_list:  # Get matching test file
-                if file[:-12] == test[:-9]:
+                if file.rstrip('.gz') == test.lstrip('test_'):
                     test_file_name = test
 
             # PARSING THROUGH TEST FILE
@@ -133,12 +158,14 @@ def compare_files(data_file_list, test_file_list):
                     column_headers.append(variable)
                 else:
                     passed = False
-                    report += "RED_X\t{0} is in \"{1}\" column headers more than once\n\n".format(variable, file)
+                    report += "{red_x}\t{0} is in \"{1}\" column headers more than once\n\n"\
+                        .format(variable, file, red_x=RED_X)
 
-            if data_headers[0] != "Sample":  # Make sure first column header is named "Sample"
-                report += "RED_X\tFirst column of \"{0}\" must be titled \"Sample\"\n\n".format(file)
+            if data_headers[0] != "SampleID":  # Make sure first column header is named "SampleID"
+                report += "{red_x}\tFirst column of \"{0}\" must be titled \"SampleID\"\n\n".format(file, red_x=RED_X)
             else:
-                report += "CHECK_MARK\tFirst column of \"{0}\" is titled \"Sample\"\n\n".format(file)
+                report += "{check_mark}\tFirst column of \"{0}\" is titled \"SampleID\"\n\n"\
+                    .format(file, check_mark=CHECK_MARK)
 
             # PARSING THROUGH DATA FILE
             for line in data_file:
@@ -152,69 +179,110 @@ def compare_files(data_file_list, test_file_list):
                         if info[1] in data_headers:  # Check if variable in test file is in data file
                             variable_index = data_headers.index(info[1])
                             if info[2] == data[variable_index]:  # Check if variable's value in test file matches value in data file
-                                report += "CHECK_MARK\tRow {0}: Success\n\n".format(row)
+                                report += "{check_mark}\tRow {0}: Success\n\n".format(row, check_mark=CHECK_MARK)
                             else:
                                 passed = False
-                                report += "RED_X\tRow {0}: Fail - Values do not match\n\n".format(row)
+                                report += "{red_x}\tRow {0}: Fail - Values do not match\n\n".format(row, red_x=RED_X)
                         else:  # Make sure
-                            report += "RED_X\tRow {0} - Variable \"{1}\" is not found in \"{2}\" column headers\n\n".format(row, info[1], file)
+                            report += "{red_x}\tRow {0} - Variable \"{1}\" is not found in \"{2}\" column headers\n\n"\
+                                .format(row, info[1], file, red_x=RED_X)
                             passed = False
 
             if len(tested_rows) < test_row_count:
                 passed = False
                 for i in range(test_row_count):
                     if i + 1 not in tested_rows:
-                        report += "RED_X\tRow {0} - Sample \"{1}\" from {2} is not found in \"{3}\"\n\n".format(i + 1, test_samples[i], test_file_name, file)
+                        report += "{red_x}\tRow {0} - Sample \"{1}\" from {2} is not found in \"{3}\"\n\n"\
+                            .format(i + 1, test_samples[i], test_file_name, file, red_x=RED_X)
 
-            if passed:
-                report += "#### Results: PASS\n\n\n"
-            else:
-                report += "#### Results: FAIL\n\n\n"
-
-    return report
+            if not passed:
+                passed_all = False
+    if passed_all:
+        report += "#### Results: TRUE\n\n\n"
+    else:
+        report += "#### Results: FAIL\n\n\n"
+    return report, passed_all
 
 
 # Check if there is a test file for every data file
-def check_test_for_every_data(file_list):
-    all_files = file_list[:]
+def check_test_for_every_data(pr, file_list):
+    report = "### Testing Test Files:\n\n"
     data_files = []
     test_files = []
+    bad_data_files = []
+    bad_test_files = []
     passed = True
 
     for file in file_list:
-        if file.endswith("_data.tsv.gz"):
+        if file.endswith(".gz"):
             data_files.append(file)
-        elif file.endswith("_test.tsv"):
+            bad_data_files.append(file)
+        elif "test" in file:
             test_files.append(file)
+            bad_test_files.append(file)
 
     for data in data_files:
         for test in test_files:
-            if data[:-12] == test[:-9]:
-                all_files.remove(data)
-                all_files.remove(test)
+            if data.rstrip('.gz') == test.lstrip('test_'):
+                bad_data_files.remove(data)
+                bad_test_files.remove(test)
 
-    if len(all_files) > 0:
+    if len(bad_data_files) + len(bad_test_files) > 0:
         passed = False
 
-    return data_files, test_files
+    for file in data_files:
+        convert(file)
+
+    if not passed:
+        for file in bad_data_files:
+            report += "{}\tData file {} is missing required test file \"test{}.tsv\"\n\n"\
+                .format(RED_X, file, file.rstrip('.tsv.gz'))
+        for file in bad_test_files:
+            report += "{}\tTest file {} is missing required data file \"{}.gz\"\n\n"\
+                .format(RED_X, file, file.lstrip('test_'))
+        report += "#### Results: FAIL\n\n\n"
+    else:
+        r, passed = check_test_files(test_files)
+        report += r
+        if passed:
+            r, passed = compare_files(data_files, test_files)
+            report += r
+    pr.report.key_test_report = report
+    pr.report.pass_key_test = passed
+    return passed
+
+
+def convert(file):
+    if 'metadata' in file:
+        df = pd.read_csv(file, sep='\t')
+        if len(df.columns.values) == 3:
+            if 'Variable' in df.columns.values and 'Value' in df.columns.values:
+                metadata = {}
+                with gzip.open(file) as fp:
+                    fp.readline()
+                    for line in fp:
+                        data = line.decode().rstrip('\n').split('\t')
+                        metadata.setdefault(data[0], {})[data[1]] = data[2]
+                df = pd.DataFrame(metadata).T
+                df.to_csv(file, compression='gzip', sep='\t', index_label='SampleID')
 
 
 # ----------------------------------------------------------------------------------------------------------
-import sys
-
-one_data = sys.argv[1]
-one_test = sys.argv[2]
-two_data = sys.argv[3]
-two_test = sys.argv[4]
-outFile = open(sys.argv[5], 'w')
-
-dataList, testList = check_test_for_every_data(sys.argv[1:])
-
-output = compare_files(dataList, testList)
-output += check_test_files(testList, 3, 3, 3)
-
-
-outFile.write(output)
-
-outFile.close()
+# import sys
+#
+# one_data = sys.argv[1]
+# one_test = sys.argv[2]
+# two_data = sys.argv[3]
+# two_test = sys.argv[4]
+# outFile = open(sys.argv[5], 'w')
+#
+# dataList, testList = check_test_for_every_data(sys.argv[1:])
+#
+# output = compare_files(dataList, testList)
+# output += check_test_files(testList, 3, 3, 3)
+#
+#
+# outFile.write(output)
+#
+# outFile.close()
 

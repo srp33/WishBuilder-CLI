@@ -1,12 +1,14 @@
-MAX_NUM_PROCESSES = 4
+import os
+
+MAX_NUM_PROCESSES = 1
 REPO_URL = 'https://api.github.com/repos/srp33/WishBuilder/'
-WB_DIRECTORY = '/app/'
-PRIVATE_DATA = WB_DIRECTORY + 'WishBuilder-CLI/private.py'
-SQLITE_FILE = WB_DIRECTORY + 'WishBuilder-CLI/history.sql'
-TESTING_LOCATION = WB_DIRECTORY + 'WishBuilder-CLI/testing/'
-RAW_DATA_STORAGE = WB_DIRECTORY + 'WishBuilder-CLI/RawDatasets/'
-GENEY_DATA_LOCATION = WB_DIRECTORY + 'WishBuilder-CLI/GeneyDatasets/'
-GENEY_CONVERTER = WB_DIRECTORY + 'GeneyTypeConverter/typeconverter.py'
+WB_DIRECTORY = '/Users/kimballhill/WishBuilder/'
+PRIVATE_DATA = os.path.join(WB_DIRECTORY, 'WishBuilder-CLI/private.py')
+SQLITE_FILE = os.path.join(WB_DIRECTORY, 'WishBuilder-CLI/history.sql')
+TESTING_LOCATION = os.path.join(WB_DIRECTORY, 'WishBuilder-CLI/testing/')
+RAW_DATA_STORAGE = os.path.join(WB_DIRECTORY, 'WishBuilder-CLI/RawDatasets/')
+GENEY_DATA_LOCATION = os.path.join(WB_DIRECTORY, 'WishBuilder-CLI/GeneyDatasets/')
+GENEY_CONVERTER = os.path.join(WB_DIRECTORY, 'GeneyTypeConverter/typeconverter.py')
 MIN_TEST_CASES = 8
 MIN_FEATURES = 2
 MIN_SAMPLES = 2

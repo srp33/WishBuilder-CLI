@@ -2,6 +2,7 @@ from tests import *
 from GithubDao import GithubDao
 from SqliteDao import SqliteDao
 from private import GH_TOKEN
+from compare import *
 import shutil
 import time
 from multiprocessing import Process
@@ -43,15 +44,15 @@ def test(pr: PullRequest):
     print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
     start = time.time()
     if pr.branch not in os.listdir(TESTING_LOCATION):
-        os.mkdir('{}{}'.format(TESTING_LOCATION, pr.branch))
+        os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
     else:
-        raise EnvironmentError("Directory {}{} Already Exists".format(TESTING_LOCATION, pr.branch))
+        raise EnvironmentError("Directory {} Already Exists".format(os.path.join(TESTING_LOCATION, pr.branch)))
     pr.status = 'In progress'
     pr.email = git_dao.get_email(pr.sha)
     sql_dao.update(pr)
     files, download_urls = git_dao.get_files_changed(pr)
     valid, description_only = check_files_changed(pr, files)
-
+    valid = True
     if valid:
         pr.report.valid_files = True
         if description_only:
@@ -61,9 +62,10 @@ def test(pr: PullRequest):
         else:
             # Download Files from Github and put them in the testing directory
             download_urls.extend(git_dao.get_existing_files(pr.branch, files))
+            download_urls.extend(git_dao.get_existing_files('Helper', []))
             for file in download_urls:
                 git_dao.download_file(file, TESTING_LOCATION)
-            os.chdir(TESTING_LOCATION + pr.branch)
+            os.chdir(os.path.join(TESTING_LOCATION, pr.branch))
             # Run tests
             test_folder(pr)
             test_config(pr)
@@ -71,21 +73,23 @@ def test(pr: PullRequest):
             original_directory = os.listdir(os.getcwd())
             # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
             if test_scripts(pr):
-                test_key_files(pr)
-                # Test Data
-                num_columns_data, num_rows_data, data_samples = test_data(pr)
-                pr.report.data_preview = create_md_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, TEST_DATA_NAME)
-                pr.report.data_preview += '**Columns: {} Rows: {}**\n\n---\n'.format(num_columns_data, num_rows_data)
-                # Test Metadata
-                num_columns_metadata, num_rows_metadata, metadata_samples, bad_variables = test_metadata(pr)
-                pr.report.meta_data_preview = create_md_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, TEST_META_DATA_NAME)
-                pr.report.data_preview += '**Columns: {} Rows: {}**\n\n---\n'\
-                    .format(num_columns_metadata, num_rows_metadata)
-                compare_samples(data_samples, metadata_samples, pr)
+                passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
+                # if passed:
+                #     test_key_files(pr)
+                    # Test Data
+                    # num_columns_data, num_rows_data, data_samples = test_data(pr)
+                    # pr.report.data_preview = create_md_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, TEST_DATA_NAME)
+                    # pr.report.data_preview += '**Columns: {} Rows: {}**\n\n---\n'.format(num_columns_data, num_rows_data)
+                    # Test Metadata
+                    # num_columns_metadata, num_rows_metadata, metadata_samples, bad_variables = test_metadata(pr)
+                    # pr.report.meta_data_preview = create_md_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, TEST_META_DATA_NAME)
+                    # pr.report.data_preview += '**Columns: {} Rows: {}**\n\n---\n'\
+                    #     .format(num_columns_metadata, num_rows_metadata)
+                    # compare_samples(data_samples, metadata_samples, pr)
                 test_cleanup(original_directory, pr)
-                with open(CONFIG_FILE_NAME, 'a') as configFile:
-                    configFile.write('numSamples: {0}\nmetaVariables: {1}\nfeatureVariables: {2}'.
-                                     format(pr.num_samples, pr.meta_variables, pr.feature_variables))
+                    # with open(CONFIG_FILE_NAME, 'a') as configFile:
+                    #     configFile.write('numSamples: {0}\nmetaVariables: {1}\nfeatureVariables: {2}'.
+                    #                      format(pr.num_samples, pr.meta_variables, pr.feature_variables))
     pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
     pr.date = time.strftime("%D", time.gmtime(time.time()))
     pr.e_date = time.time()
@@ -96,9 +100,8 @@ def test(pr: PullRequest):
     os.chdir(cwd)
     cleanup(pr)
 
-
 def cleanup(pr):
-    shutil.rmtree("{}{}".format(TESTING_LOCATION, pr.branch))
+    shutil.rmtree("{}".format(os.path.join(TESTING_LOCATION, pr.branch)), ignore_errors=True)
     pr.send_report(recipient='hillkimball@gmail.com')
     # pr.send_report()
     print("Done!")
@@ -129,24 +132,29 @@ if __name__ == '__main__':
     setup()
     sql_dao = SqliteDao(SQLITE_FILE)
     git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
-    processes = []
-    queue = []
-    history = []
-    while True:
-        print("Check for prs", flush=True)
-        new_prs = get_new_prs()
-        for pull in new_prs:
-            if pull.sha not in history:
-                queue.append(pull)
-        while len(queue) > 0:
-            for p in processes:
-                if not p.is_alive():
-                    processes.remove(p)
-            if len(processes) < MAX_NUM_PROCESSES:
-                new_pr = queue.pop()
-                history.append(new_pr.sha)
-                p = Process(target=test, args=(new_pr,))
-                processes.append(p)
-                p.start()
-            time.sleep(5)
-        time.sleep(600)
+    # processes = []
+    # queue = []
+    # history = []
+    # while True:
+    #     print("Check for prs", flush=True)
+    #     new_prs = get_new_prs()
+    #     for pull in new_prs:
+    #         if pull.sha not in history:
+    #             queue.append(pull)
+    #     while len(queue) > 0:
+    #         for p in processes:
+    #             if not p.is_alive():
+    #                 processes.remove(p)
+    #         if len(processes) < MAX_NUM_PROCESSES:
+    #             new_pr = queue.pop()
+    #             history.append(new_pr.sha)
+    #             p = Process(target=test, args=(new_pr,))
+    #             processes.append(p)
+    #             p.start()
+    #         time.sleep(5)
+    #     time.sleep(600)
+
+    new_prs = get_new_prs()
+    pr = new_prs[0]
+    print(pr.branch)
+    test(pr)

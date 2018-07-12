@@ -15,12 +15,12 @@ def check_files_changed(pr: PullRequest, files):
     valid = True
     for fileName in files:
         path = fileName.split("/")
-        if path[0] != pr.branch:
+        if path[0] != pr.branch and path[0] != 'Helper':
             bad_files.append(fileName)
     if len(bad_files) > 0:
         valid = False
-        report += "Only files in the \"{}\" directory should be changed. The following files were also changed in " \
-                  "this branch:\n".format(pr.branch)
+        report += "Only files in the \"{}\" or \"Helper\" directory should be changed. The following files were also " \
+                  "changed in this branch:\n".format(pr.branch)
         for file in bad_files:
             report += "- {}\n".format(file)
         pr.report.valid_files = False
@@ -53,7 +53,7 @@ def get_files(directory: str) -> []:
 def test_folder(pr: PullRequest):
     report = '### Testing Directory . . .\n\n'
     passed = True
-    file_list = get_files('{}{}'.format(TESTING_LOCATION, pr.branch))
+    file_list = get_files(os.path.join(TESTING_LOCATION, pr.branch))
     for path in file_list:
         if path[0] != '.':
             # path = "{}{}/{}".format(TESTING_LOCATION, pr.branch, path)
@@ -132,6 +132,12 @@ def test_files(pr: PullRequest):
     os.chdir('{}{}'.format(TESTING_LOCATION, pr.branch))
     passed = True
     report = '\n### Testing file paths:\n\n'
+    report += '### Running install\n\n'
+    script = os.path.join(TESTING_LOCATION, pr.branch, INSTALL_FILE_NAME)
+    result, successful = test_bash_script(script)
+    report += result
+    if not successful:
+        passed = False
     for path in REQUIRED_FILES:
         if os.path.exists(path):
             report += CHECK_MARK + '\t' + path + ' exists.\n\n'
@@ -154,7 +160,7 @@ def test_scripts(pr: PullRequest):
     report = "### Running user scripts . . .\n\n"
     passed = True
     for script in USER_SCRIPTS:
-        script = "{}{}/{}".format(TESTING_LOCATION, pr.branch, script)
+        script = os.path.join(TESTING_LOCATION, pr.branch, script)
         result, successful = test_bash_script(script)
         report += result
         if not successful:
@@ -199,7 +205,7 @@ def check_zip():
             if re.search(r"gzip compressed data", file_type):
                 report += CHECK_MARK + '\t' + path + ' was created and zipped correctly.\n\n'
             else:
-                report += RED_X + '\t' + path + 'exists, but was not zipped correctly.\n\n'
+                report += RED_X + '\t' + path + ' exists, but was not zipped correctly.\n\n'
                 passed = False
         else:
             report += RED_X + '\t' + path + ' does not exist.\n\n'
@@ -211,6 +217,10 @@ def test_key_files(pr: PullRequest):
     report = "### Testing Key Files:\n\n"
     passed = True
     min_features = MIN_FEATURES
+    key_files = []
+    for path in os.listdir(os.getcwd()):
+        if 'test_' in path:
+            key_files.append(path)
     for path in KEY_FILES:
         if has_one_feature(TEST_META_DATA_NAME):
             if path == KEY_META_DATA_NAME:
@@ -524,7 +534,7 @@ def test_cleanup(original_directory, pr: PullRequest):
     os.system('./' + CLEANUP_FILE_NAME)
     passed = True
     report = '### Testing Directory after cleanup . . .\n\n'
-    current_directory = os.listdir(argv[1])
+    current_directory = os.listdir(os.getcwd())
     for file in current_directory:
         if file not in original_directory:
             passed = False

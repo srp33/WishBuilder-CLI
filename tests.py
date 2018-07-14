@@ -1,12 +1,12 @@
 from PullRequest import PullRequest
 from Constants import *
-from sys import argv
 import os
 import os.path
 import subprocess
 import re
 import gzip
 import yaml
+from yaml.scanner import ScannerError
 
 
 def check_files_changed(pr: PullRequest, files):
@@ -88,20 +88,24 @@ def test_config(pr: PullRequest):
     config_path = "{}{}/{}".format(TESTING_LOCATION, pr.branch, CONFIG_FILE_NAME)
     if os.path.exists(config_path):
         with open(config_path, 'r') as stream:
-            configs = yaml.load(stream)
-            for config in REQUIRED_CONFIGS:
-                if config not in configs.keys():
-                    passed = False
-                    report += RED_X + '\t' + CONFIG_FILE_NAME + ' does not contain a configuration' \
-                                                                ' for \"' + config + '\".\n\n'
-            if passed:
-                report += CHECK_MARK + '\t' + CONFIG_FILE_NAME + ' contains all necessary configurations.\n\n'
-            if 'title' in configs:
-                if len(configs['title']) > MAX_TITLE_SIZE:
-                    passed = False
-                    report += RED_X + '\tDataset Title cannot exceed ' + str(MAX_TITLE_SIZE) + ' characters.\n\n'
-                else:
-                    report += CHECK_MARK + '\tTitle is less than ' + str(MAX_TITLE_SIZE) + ' characters\n\n'
+            try:
+                configs = yaml.load(stream)
+                for config in REQUIRED_CONFIGS:
+                    if config not in configs.keys():
+                        passed = False
+                        report += RED_X + '\t' + CONFIG_FILE_NAME + ' does not contain a configuration' \
+                                                                    ' for \"' + config + '\".\n\n'
+                if passed:
+                    report += CHECK_MARK + '\t' + CONFIG_FILE_NAME + ' contains all necessary configurations.\n\n'
+                if 'title' in configs:
+                    if len(configs['title']) > MAX_TITLE_SIZE:
+                        passed = False
+                        report += RED_X + '\tDataset Title cannot exceed ' + str(MAX_TITLE_SIZE) + ' characters.\n\n'
+                    else:
+                        report += CHECK_MARK + '\tTitle is less than ' + str(MAX_TITLE_SIZE) + ' characters\n\n'
+            except ScannerError as e:
+                passed = False
+                report += '{}\tInvalid yaml, error (Likely due to invalid colons):\n\n{}\n\n'.format(RED_X, e)
     else:
         report += RED_X + '\t ' + CONFIG_FILE_NAME + ' does not exist\n\n'
         passed = False
@@ -199,17 +203,14 @@ def test_bash_script(bash_script_name):
 def check_zip():
     passed = True
     report = ""
-    for path in [TEST_DATA_NAME, TEST_META_DATA_NAME]:
-        file_type = str(subprocess.check_output(['file', '-b', path]))
-        if os.path.exists(path):
+    for path in os.listdir('./'):
+        if path.endswith('.gz'):
+            file_type = str(subprocess.check_output(['file', '-b', path]))
             if re.search(r"gzip compressed data", file_type):
                 report += CHECK_MARK + '\t' + path + ' was created and zipped correctly.\n\n'
             else:
                 report += RED_X + '\t' + path + ' exists, but was not zipped correctly.\n\n'
                 passed = False
-        else:
-            report += RED_X + '\t' + path + ' does not exist.\n\n'
-            passed = False
     return report, passed
 
 
@@ -473,25 +474,6 @@ def test_metadata(pr: PullRequest):
     pr.report.pass_meta_tests = passed
     pr.meta_variables = num_variables
     return len(test_header_data), num_rows, samples, bad_variables
-
-
-def create_md_table(columns, rows, file_path):
-    table = '\n### First ' + \
-        str(columns) + ' columns and ' + str(rows) + \
-        ' rows of ' + file_path + ':\n\n'
-    with gzip.open(file_path, 'r') as inFile:
-        for i in range(rows):
-            line = inFile.readline().decode().rstrip('\n').split('\t')
-            if i == 1:
-                for j in range(columns):
-                    table += '|\t---\t'
-                table += '|\n'
-            table = table + '|'
-            for j in range(columns):
-                table = table + '\t' + line[j] + '\t|'
-            table = table + '\n'
-    table += '\n'
-    return table
 
 
 def compare_samples(data_samples, meta_data_samples, pr: PullRequest):

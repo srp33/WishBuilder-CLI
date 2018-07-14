@@ -1,6 +1,7 @@
 import gzip
 from Constants import *
 import pandas as pd
+from PullRequest import PullRequest
 
 
 def one_feature(file):
@@ -31,7 +32,7 @@ def check_test_files(test_file_list):
 
         with open(file, 'r') as test_file:
             headers = test_file.readline().rstrip('\n').split('\t')
-            # Make sure there are three columns named SampleID, Variable, Value
+            # Make sure there are three columns named Sample, Variable, Value
             passed, temp_report = check_test_columns(headers, file)
             if passed:
                 report += "{check_mark}\t\"{0}\" has three columns with the correct headers\n\n"\
@@ -42,7 +43,6 @@ def check_test_files(test_file_list):
             for line in test_file:
                 row_count += 1
                 data = line.rstrip('\n').split('\t')
-                report += "number of columns is {}\n".format(len(data))
                 if len(data) is not 3 and len(data) is not 0:  # Make sure each row has exactly three columns
                     report += "{red_x}\tRow {0} of \"{1}\" should contain exactly three columns\n\n"\
                         .format(row_count, file, red_x=RED_X)
@@ -64,7 +64,7 @@ def check_test_files(test_file_list):
 
         for sample in samples:  # Make sure each sample has enough features to test
             if len(samples[sample]) < min_features:
-                report += "{red_x}\t\SampleID \"{0}\" does not have enough features to test (min: {1})\n\n"\
+                report += "{red_x}\tSample \"{0}\" does not have enough features to test (min: {1})\n\n"\
                     .format(sample, min_features, red_x=RED_X)
                 passed = False
 
@@ -84,14 +84,14 @@ def check_test_files(test_file_list):
                 .format(file, row_count, min_test_cases, check_mark=CHECK_MARK)
 
     if passed:
-        report += "#### Results: PASS\n\n\n"
+        report += "#### Results: PASS\n---\n"
     else:
-        report += "#### Results: FAIL\n\n\n"
+        report += "#### Results: FAIL\n---\n"
 
     return report, passed
 
 
-# Check if the column headers of the test file are "SampleID", "Variable", and "Value"
+# Check if the column headers of the test file are "Sample", "Variable", and "Value"
 def check_test_columns(col_headers, file):
     passed = True
     report = ""
@@ -100,8 +100,8 @@ def check_test_columns(col_headers, file):
         report += "{red_x}\t\"{0}\" does not contain three columns\n\n".format(file, red_x=RED_X)
         passed = False
     else:  # Check the names of each column
-        if col_headers[0] != "SampleID":
-            report += "{red_x}\tFirst column of \"{0}\" must be titled \"SampleID\"\n\n'".format(file, red_x=RED_X)
+        if col_headers[0] != "Sample" and col_headers[0] != "SampleID":
+            report += "{red_x}\tFirst column of \"{0}\" must be titled \"Sample\"\n\n'".format(file, red_x=RED_X)
             passed = False
         if col_headers[1] != "Variable":
             report += "{red_x}\tSecond column of \"{0}\" must be titled \"Variable\"\n\n".format(file, red_x=RED_X)
@@ -115,8 +115,8 @@ def check_test_columns(col_headers, file):
 
 def compare_files(data_file_list, test_file_list):
     passed_all = True
-    report = "#### Comparing Files:\n\n"
-
+    report = "### Comparing Files:\n\n"
+    all_samples = {}
     for file in data_file_list:
 
         passed = True
@@ -149,7 +149,9 @@ def compare_files(data_file_list, test_file_list):
                         test_dict.setdefault(test_data[0], []).extend([test_data])
             # ----------------------------------------------------------------------------------------------------------
 
-            report += "#### Running \"{0}\" and \"{1}\"\n\n".format(file, test_file_name)
+            report += "#### Comparing \"{0}\" and \"{1}\"\n\n".format(file, test_file_name)
+
+            report += create_html_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, file)
 
             data_headers = data_file.readline().decode().rstrip('\n').split('\t')
 
@@ -161,10 +163,10 @@ def compare_files(data_file_list, test_file_list):
                     report += "{red_x}\t{0} is in \"{1}\" column headers more than once\n\n"\
                         .format(variable, file, red_x=RED_X)
 
-            if data_headers[0] != "SampleID":  # Make sure first column header is named "SampleID"
-                report += "{red_x}\tFirst column of \"{0}\" must be titled \"SampleID\"\n\n".format(file, red_x=RED_X)
+            if data_headers[0] != "Sample":  # Make sure first column header is named "Sample"
+                report += "{red_x}\tFirst column of \"{0}\" must be titled \"Sample\"\n\n".format(file, red_x=RED_X)
             else:
-                report += "{check_mark}\tFirst column of \"{0}\" is titled \"SampleID\"\n\n"\
+                report += "{check_mark}\tFirst column of \"{0}\" is titled \"Sample\"\n\n"\
                     .format(file, check_mark=CHECK_MARK)
 
             # PARSING THROUGH DATA FILE
@@ -197,15 +199,32 @@ def compare_files(data_file_list, test_file_list):
 
             if not passed:
                 passed_all = False
+        all_samples[file] = data_samples
+    report += "### Comparing Samples\n\n"
+    samples = False
+    pass_sample_comparison = True
+    num_samples = 0
+    for file in all_samples.keys():
+        if not samples:
+            samples = all_samples[file]
+            num_samples = len(samples)
+        else:
+            if all_samples[file] != samples:
+                report += "{}\tSamples in data files are not equal\n\n".format(RED_X)
+                pass_sample_comparison = False
+                passed_all = False
+    if pass_sample_comparison:
+        report += "{}\tSamples are the same in all data files\n\n".format(CHECK_MARK)
+
     if passed_all:
-        report += "#### Results: TRUE\n\n\n"
+        report += "#### Results: PASS\n---\n"
     else:
-        report += "#### Results: FAIL\n\n\n"
-    return report, passed_all
+        report += "#### Results: FAIL\n---\n"
+    return report, passed_all, num_samples
 
 
 # Check if there is a test file for every data file
-def check_test_for_every_data(pr, file_list):
+def check_test_for_every_data(pr: PullRequest, file_list):
     report = "### Testing Test Files:\n\n"
     data_files = []
     test_files = []
@@ -230,25 +249,29 @@ def check_test_for_every_data(pr, file_list):
     if len(bad_data_files) + len(bad_test_files) > 0:
         passed = False
 
-    for file in data_files:
-        convert(file)
+    # for file in data_files:
+    #     convert(file)
 
     if not passed:
         for file in bad_data_files:
-            report += "{}\tData file {} is missing required test file \"test{}.tsv\"\n\n"\
+            report += "{}\tData file {} is missing required test file \"test_{}.tsv\"\n\n"\
                 .format(RED_X, file, file.rstrip('.tsv.gz'))
         for file in bad_test_files:
             report += "{}\tTest file {} is missing required data file \"{}.gz\"\n\n"\
                 .format(RED_X, file, file.lstrip('test_'))
         report += "#### Results: FAIL\n\n\n"
+        pr.report.key_test_report = report
+        pr.report.pass_key_test = False
     else:
         r, passed = check_test_files(test_files)
         report += r
+        pr.report.key_test_report = report
+        pr.report.pass_key_test = passed
         if passed:
-            r, passed = compare_files(data_files, test_files)
-            report += r
-    pr.report.key_test_report = report
-    pr.report.pass_key_test = passed
+            report, passed, num_samples = compare_files(data_files, test_files)
+            pr.num_samples = num_samples
+            pr.report.data_tests_report = report
+            pr.report.pass_data_tests = passed
     return passed
 
 
@@ -264,7 +287,52 @@ def convert(file):
                         data = line.decode().rstrip('\n').split('\t')
                         metadata.setdefault(data[0], {})[data[1]] = data[2]
                 df = pd.DataFrame(metadata).T
-                df.to_csv(file, compression='gzip', sep='\t', index_label='SampleID')
+                df.to_csv(file, compression='gzip', sep='\t', index_label='Sample')
+
+
+def create_md_table(columns, rows, file_path):
+    table = ''
+    with gzip.open(file_path, 'r') as inFile:
+        for i in range(rows):
+            line = inFile.readline().decode().rstrip('\n').split('\t')
+            if len(line) < columns:
+                columns = len(line)
+            if i == 0:
+                table = '\n### First ' + \
+                        str(columns) + ' columns and ' + str(rows) + \
+                        ' rows of ' + file_path + ':\n\n'
+            if i == 1:
+                for j in range(columns):
+                    table += '|\t---\t'
+                table += '|\n'
+            table = table + '|'
+            for j in range(columns):
+                table = table + '\t' + line[j] + '\t|'
+            table = table + '\n'
+    table += '\n'
+    return table
+
+
+def create_html_table(columns, rows, file_path):
+    table = '\n### First ' + \
+            str(columns) + ' columns and ' + str(rows) + \
+            ' rows of ' + file_path + ':\n\n'
+    table += '<table style="width:100%; border: 1px solid black;">\n'
+    with gzip.open(file_path, 'r') as inFile:
+        for i in range(rows):
+            table += '\t<tr>\n'
+            line = inFile.readline().decode().rstrip('\n').split('\t')
+            if len(line) < columns:
+                columns = len(line)
+            for j in range(columns):
+                if i == 0:
+                    table += '\t\t<th>{}</th>\n'.format(line[j])
+                else:
+                    table += '\t\t<td>{}</td>\n'.format(line[j])
+            table += '\n'
+            table += '\t</tr>\n'
+    table += '</table>\n'
+    return table
 
 
 # ----------------------------------------------------------------------------------------------------------

@@ -37,12 +37,12 @@ class Report:
             self.data_tests_report = ''
 
             # Metadata Test Cases
-            self.pass_meta_tests = False
-            self.meta_tests_report = ''
+            # self.pass_meta_tests = False
+            # self.meta_tests_report = ''
 
             # Sample Comparison Test
-            self.pass_sample_comparison = False
-            self.sample_comparison_report = ''
+            # self.pass_sample_comparison = False
+            # self.sample_comparison_report = ''
 
             # Cleanup Test
             self.pass_cleanup = False
@@ -88,12 +88,12 @@ class Report:
             self.data_tests_report = report_dict['data_tests_report']
 
             # Metadata Test Cases
-            self.pass_meta_tests = report_dict['pass_meta_tests']
-            self.meta_tests_report = report_dict['meta_tests_report']
+            # self.pass_meta_tests = report_dict['pass_meta_tests']
+            # self.meta_tests_report = report_dict['meta_tests_report']
 
             # Sample Comparison Test
-            self.pass_sample_comparison = report_dict['pass_sample_comparison']
-            self.sample_comparison_report = report_dict['sample_comparison_report']
+            # self.pass_sample_comparison = report_dict['pass_sample_comparison']
+            # self.sample_comparison_report = report_dict['sample_comparison_report']
 
             # Cleanup Test
             self.pass_cleanup = report_dict['pass_cleanup']
@@ -118,10 +118,10 @@ class Report:
             out += self.script_test_report
             out += self.key_test_report
             out += self.meta_data_preview
-            out += self.meta_tests_report
+            # out += self.meta_tests_report
             out += self.data_preview
             out += self.data_tests_report
-            out += self.sample_comparison_report
+            # out += self.sample_comparison_report
             out += self.cleanup_report
             return out
 

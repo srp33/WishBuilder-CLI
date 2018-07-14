@@ -106,5 +106,5 @@ private.py
 *.sql
 *.json
 testing/
-RawData/
-GeneyData/
+RawDatasets/
+GeneyDatasets/

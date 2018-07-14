@@ -28,7 +28,7 @@ PARSE_FILE_NAME = 'parse.sh'
 CLEANUP_FILE_NAME = 'cleanup.sh'
 DESCRIPTION_FILE_NAME = 'description.md'
 CONFIG_FILE_NAME = 'config.yaml'
-REQUIRED_FILES = [KEY_DATA_NAME, KEY_META_DATA_NAME, DOWNLOAD_FILE_NAME, INSTALL_FILE_NAME, PARSE_FILE_NAME,
+REQUIRED_FILES = [DOWNLOAD_FILE_NAME, INSTALL_FILE_NAME, PARSE_FILE_NAME,
                   CLEANUP_FILE_NAME, DESCRIPTION_FILE_NAME, CONFIG_FILE_NAME]
 REQUIRED_CONFIGS = ['title', 'featureDescription', 'featureDescriptionPlural']
 # These are the executables that will be ran to produce the data and metadata files (They are executed in this order)

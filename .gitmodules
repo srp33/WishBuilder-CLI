@@ -1,0 +1,3 @@
+[submodule "ShapeShifter"]
+	path = ShapeShifter
+	url = git@github.com:srp33/ShapeShifter.git

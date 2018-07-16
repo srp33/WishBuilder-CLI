@@ -139,7 +139,7 @@ def convert_parquet(pr: PullRequest, raw_data_storage):
     ss.merge_files(data_files[1:], data_path, 'parquet')
     get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
     get_description(pr, os.path.join(geney_dataset_path, 'description.json'))
-    git_dao.merge(pr)
+    # git_dao.merge(pr)
     os.chdir(cwd)
 
 
@@ -206,9 +206,6 @@ def setup():
     for path in required_directories:
         if not os.path.exists(path):
             os.makedirs(path)
-    if not os.path.exists("/".join(GENEY_CONVERTER.split('/')[:-1])):
-        print("Geney Type Converter is  being cloned...")
-        os.system("git clone git@github.com:zence/GeneyTypeConverter.git")
 
 
 if __name__ == '__main__':

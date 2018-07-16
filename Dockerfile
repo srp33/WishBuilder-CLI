@@ -26,8 +26,8 @@ RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
     /bin/bash ~/anaconda.sh -b -p /opt/conda && \
     rm ~/anaconda.sh
 ENV PATH /opt/conda/bin:$PATH
-RUN conda install -y numpy=1.13.0 hdf5=1.10.1 xlrd=1.1.0 markdown requests h5py yaml pip
-RUN pip install fastnumbers
+RUN conda install -y numpy=1.13.0 hdf5=1.10.1 xlrd=1.1.0 markdown requests h5py yaml pip pandas=0.22.0
+RUN pip install fastnumbers pyarrow
 
 # Install R packages
 RUN R -e "install.packages(c('tidyverse'), repos='https://rweb.crmda.ku.edu/cran/', clean=TRUE)"

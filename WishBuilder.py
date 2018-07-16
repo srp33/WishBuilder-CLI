@@ -44,57 +44,64 @@ def get_new_prs():
 
 def test(pr: PullRequest):
     cwd = os.getcwd()
-    print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
-    start = time.time()
-    raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
-    if pr.branch not in os.listdir(TESTING_LOCATION):
-        os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
-    else:
-        raise EnvironmentError("Directory {} Already Exists".format(os.path.join(TESTING_LOCATION, pr.branch)))
-    pr.status = 'In progress'
-    pr.email = git_dao.get_email(pr.sha)
-    sql_dao.update(pr)
-    files, download_urls = git_dao.get_files_changed(pr)
-    valid, description_only = check_files_changed(pr, files)
-    valid = True
-    if valid:
-        pr.report.valid_files = True
-        if description_only:
-            git_dao.merge(pr)
-            geney_convert(pr)
-            pr.set_updated()
+    try:
+        print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
+        start = time.time()
+        raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
+        if pr.branch not in os.listdir(TESTING_LOCATION):
+            os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
         else:
-            # Download Files from Github and put them in the testing directory
-            download_urls.extend(git_dao.get_existing_files(pr.branch, files))
-            download_urls.extend(git_dao.get_existing_files('Helper', files))
-            for file in download_urls:
-                git_dao.download_file(file, TESTING_LOCATION)
-            os.chdir(os.path.join(TESTING_LOCATION, pr.branch))
-            # Run tests
-            test_folder(pr)
-            test_config(pr)
-            test_files(pr)
-            original_directory = os.listdir(os.getcwd())
-            original_directory.append('test_Clinical.tsv')
-            # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
-            if test_scripts(pr):
+            raise EnvironmentError("Directory {} Already Exists".format(os.path.join(TESTING_LOCATION, pr.branch)))
+        pr.status = 'In progress'
+        pr.email = git_dao.get_email(pr.sha)
+        sql_dao.update(pr)
+        files, download_urls = git_dao.get_files_changed(pr)
+        valid, description_only = check_files_changed(pr, files)
+        valid = True
+        if valid:
+            pr.report.valid_files = True
+            if description_only:
+                git_dao.merge(pr)
+                geney_convert(pr)
+                pr.set_updated()
+            else:
+                # Download Files from Github and put them in the testing directory
+                download_urls.extend(git_dao.get_existing_files(pr.branch, files))
+                download_urls.extend(git_dao.get_existing_files('Helper', files))
+                for file in download_urls:
+                    git_dao.download_file(file, TESTING_LOCATION)
+                os.chdir(os.path.join(TESTING_LOCATION, pr.branch))
+                # Run tests
+                test_folder(pr)
+                test_config(pr)
+                test_files(pr)
+                original_directory = os.listdir(os.getcwd())
+                original_directory.append('test_Clinical.tsv')
+                # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
+                if test_scripts(pr):
 
-                fix_files()
+                    fix_files()
 
-                passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
-                if passed:
-                    os.mkdir(raw_data_storage)
-                    for file in os.listdir(os.getcwd()):
-                        if file.endswith('.gz'):
-                            os.system('mv {} {}'.format(file, raw_data_storage))
-                test_cleanup(original_directory, pr)
-    pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
-    pr.date = time.strftime("%D", time.gmtime(time.time()))
-    pr.e_date = time.time()
-    pr.check_if_passed()
-    sql_dao.update(pr)
-    if pr.passed:
-        convert_parquet(pr, raw_data_storage)
+                    passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
+                    if passed:
+                        os.mkdir(raw_data_storage)
+                        for file in os.listdir(os.getcwd()):
+                            if file.endswith('.gz'):
+                                os.system('mv {} {}'.format(file, raw_data_storage))
+                    test_cleanup(original_directory, pr)
+        pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
+        pr.date = time.strftime("%D", time.gmtime(time.time()))
+        pr.e_date = time.time()
+        pr.check_if_passed()
+        sql_dao.update(pr)
+        if pr.passed:
+            convert_parquet(pr, raw_data_storage)
+    except Exception as e:
+        pr.status = 'Error'
+        pr.passed = False
+        pr.report.other = True
+        pr.report.other_content = '\n### WishBuilder Error, we are working on it and will rerun your request when we' \
+                                  ' fix the issue. (Error message: {})\n\n'.format(e)
     os.chdir(cwd)
     cleanup(pr)
 

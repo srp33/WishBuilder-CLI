@@ -2,6 +2,12 @@ version: '2'
 
 services:
   wb-container:
-    image: "srp33/wishbuilder-cli"
+#    image: "srp33/wishbuilder-cli"
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
-      - "${WB_PATH}:/app"
+      - "${pwd}:/app"
+    user: '1004:1004'
+    environment:
+      - PYTHONPATH: /app/ShapeShifter/ShapeShifter

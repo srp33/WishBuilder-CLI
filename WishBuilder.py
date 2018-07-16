@@ -209,6 +209,7 @@ def setup():
 
 
 if __name__ == '__main__':
+    print(os.getcwd())
     setup()
     sql_dao = SqliteDao(SQLITE_FILE)
     git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
@@ -238,6 +239,3 @@ if __name__ == '__main__':
     pr = new_prs[0]
     print(pr.branch)
     test(pr)
-    print(pr.get_report_html())
-    with open('test.md', 'w') as fp:
-        fp.write(pr.get_report_markdown())

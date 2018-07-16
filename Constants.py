@@ -2,7 +2,7 @@ import os
 
 MAX_NUM_PROCESSES = 1
 REPO_URL = 'https://api.github.com/repos/srp33/WishBuilder/'
-WB_DIRECTORY = '/app/'
+WB_DIRECTORY = os.getcwd()
 PRIVATE_DATA = os.path.join(WB_DIRECTORY, 'private.py')
 SQLITE_FILE = os.path.join(WB_DIRECTORY, 'history.sql')
 TESTING_LOCATION = os.path.join(WB_DIRECTORY, 'testing/')

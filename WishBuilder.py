@@ -146,7 +146,7 @@ def convert_parquet(pr: PullRequest, raw_data_storage):
     ss.merge_files(data_files[1:], data_path, 'parquet')
     get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
     get_description(pr, os.path.join(geney_dataset_path, 'description.json'))
-    # git_dao.merge(pr)
+    git_dao.merge(pr)
     os.chdir(cwd)
 
 
@@ -220,29 +220,29 @@ if __name__ == '__main__':
     setup()
     sql_dao = SqliteDao(SQLITE_FILE)
     git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
-    # processes = []
-    # queue = []
-    # history = []
-    # while True:
-    #     print("Check for prs", flush=True)
-    #     new_prs = get_new_prs()
-    #     for pull in new_prs:
-    #         if pull.sha not in history:
-    #             queue.append(pull)
-    #     while len(queue) > 0:
-    #         for p in processes:
-    #             if not p.is_alive():
-    #                 processes.remove(p)
-    #         if len(processes) < MAX_NUM_PROCESSES:
-    #             new_pr = queue.pop()
-    #             history.append(new_pr.sha)
-    #             p = Process(target=test, args=(new_pr,))
-    #             processes.append(p)
-    #             p.start()
-    #         time.sleep(5)
-    #     time.sleep(600)
+    processes = []
+    queue = []
+    history = []
+    while True:
+        print("Check for prs", flush=True)
+        new_prs = get_new_prs()
+        for pull in new_prs:
+            if pull.sha not in history:
+                queue.append(pull)
+        while len(queue) > 0:
+            for p in processes:
+                if not p.is_alive():
+                    processes.remove(p)
+            if len(processes) < MAX_NUM_PROCESSES:
+                new_pr = queue.pop()
+                history.append(new_pr.sha)
+                p = Process(target=test, args=(new_pr,))
+                processes.append(p)
+                p.start()
+            time.sleep(5)
+        time.sleep(600)
 
-    new_prs = get_new_prs()
-    pr = new_prs[0]
-    print(pr.branch)
-    test(pr)
+    # new_prs = get_new_prs()
+    # pr = new_prs[0]
+    # print(pr.branch)
+    # test(pr)

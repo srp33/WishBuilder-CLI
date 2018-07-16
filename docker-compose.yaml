@@ -7,7 +7,8 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - "${pwd}:/app"
+      - /Analysis/GeneyWishBuilder/WishBuilder-CLI:/app
     user: '1004:1004'
     environment:
-      - PYTHONPATH: /app/ShapeShifter/ShapeShifter
+      - PYTHONPATH=/app/ShapeShifter/ShapeShifter
+    command: python3 WishBuilder.py

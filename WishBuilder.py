@@ -114,7 +114,6 @@ def convert_parquet(pr: PullRequest, raw_data_storage):
     groups = {}
     for file in data_files:
         group_name = file.rstrip('.gz').rstrip('.tsv')
-        # groups[group_name] = []
         with gzip.open(file) as fp:
             with gzip.open('tmp.tsv.gz', 'w') as fp_out:
                 columns = fp.readline().decode().rstrip('\n').split('\t')
@@ -140,6 +139,7 @@ def convert_parquet(pr: PullRequest, raw_data_storage):
     ss.merge_files(data_files[1:], data_path, 'parquet')
     get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
     get_description(pr, os.path.join(geney_dataset_path, 'description.json'))
+    git_dao.merge(pr)
     os.chdir(cwd)
 
 
@@ -184,9 +184,9 @@ def get_description(pr: PullRequest, out_file):
 
 
 def cleanup(pr):
-    # shutil.rmtree("{}".format(os.path.join(TESTING_LOCATION, pr.branch)), ignore_errors=True)
+    shutil.rmtree("{}".format(os.path.join(TESTING_LOCATION, pr.branch)), ignore_errors=True)
     pr.send_report(recipient='hillkimball@gmail.com')
-    # pr.send_report()
+    pr.send_report()
     print("Done!")
 
 

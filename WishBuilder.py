@@ -76,11 +76,11 @@ def test(pr: PullRequest):
                 test_config(pr)
                 test_files(pr)
                 original_directory = os.listdir(os.getcwd())
-                original_directory.append('test_Clinical.tsv')
+                # original_directory.append('test_Clinical.tsv')
                 # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
                 if test_scripts(pr):
 
-                    fix_files()
+                    # fix_files()
 
                     passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
                     if passed:
@@ -193,7 +193,10 @@ def get_description(pr: PullRequest, out_file):
 def cleanup(pr):
     shutil.rmtree("{}".format(os.path.join(TESTING_LOCATION, pr.branch)), ignore_errors=True)
     pr.send_report(recipient='hillkimball@gmail.com')
-    pr.send_report()
+    try:
+        pr.send_report()
+    except Exception as e:
+        print(e)
     print("Done!")
 
 

@@ -186,9 +186,9 @@ def test_scripts(pr: PullRequest):
 def test_bash_script(bash_script_name):
     report = "Executing " + bash_script_name + ": "
     passed = True
-    os.system('chmod +x {}'.format(bash_script_name))
+    # os.system('bash {}'.format(bash_script_name))
     results = subprocess.run(
-        bash_script_name, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        ['bash', bash_script_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     if results.returncode != 0:
         report += '\n\n' + RED_X + '\t' + bash_script_name.split('/')[-1] + ' returned an error:\n```bash\n' + \
                      results.stderr.decode().rstrip('\n') + '\n```\n\n'

@@ -132,8 +132,6 @@ def test_config(pr: PullRequest):
 
 
 def test_files(pr: PullRequest):
-    cwd = os.getcwd()
-    os.chdir('{}{}'.format(TESTING_LOCATION, pr.branch))
     passed = True
     report = '\n### Testing file paths:\n\n'
     report += '### Running install\n\n'
@@ -156,7 +154,6 @@ def test_files(pr: PullRequest):
         print('\t\tFAIL', flush=True)
     pr.report.pass_file_test = passed
     pr.report.file_test_report = report
-    os.chdir(cwd)
     return passed
 
 
@@ -188,7 +185,7 @@ def test_bash_script(bash_script_name):
     passed = True
     # os.system('bash {}'.format(bash_script_name))
     results = subprocess.run(
-        ['bash', bash_script_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        'bash {}'.format(bash_script_name), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     if results.returncode != 0:
         report += '\n\n' + RED_X + '\t' + bash_script_name.split('/')[-1] + ' returned an error:\n```bash\n' + \
                      results.stderr.decode().rstrip('\n') + '\n```\n\n'

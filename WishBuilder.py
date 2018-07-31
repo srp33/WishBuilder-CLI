@@ -76,11 +76,11 @@ def test(pr: PullRequest):
                 test_config(pr)
                 test_files(pr)
                 original_directory = os.listdir(os.getcwd())
-                # original_directory.append('test_Clinical.tsv')
+                original_directory.append('test_Clinical.tsv')
                 # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
                 if test_scripts(pr):
 
-                    # fix_files()
+                    fix_files()
 
                     passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
                     if passed:
@@ -223,31 +223,31 @@ if __name__ == '__main__':
     setup()
     sql_dao = SqliteDao(SQLITE_FILE)
     git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
-    # processes = []
-    # queue = []
-    # history = []
-    # while True:
-    #     print("Check for prs", flush=True)
-    #     new_prs = get_new_prs()
-    #     for pull in new_prs:
-    #         if pull.sha not in history:
-    #             queue.append(pull)
-    #     while len(queue) > 0:
-    #         for p in processes:
-    #             if not p.is_alive():
-    #                 processes.remove(p)
-    #         if len(processes) < MAX_NUM_PROCESSES:
-    #             new_pr = queue.pop()
-    #             history.append(new_pr.sha)
-    #             p = Process(target=test, args=(new_pr,))
-    #             processes.append(p)
-    #             p.start()
-    #         time.sleep(5)
-    #     time.sleep(600)
+    processes = []
+    queue = []
+    history = []
+    while True:
+        print("Check for prs", flush=True)
+        new_prs = get_new_prs()
+        for pull in new_prs:
+            if pull.sha not in history:
+                queue.append(pull)
+        while len(queue) > 0:
+            for p in processes:
+                if not p.is_alive():
+                    processes.remove(p)
+            if len(processes) < MAX_NUM_PROCESSES:
+                new_pr = queue.pop()
+                history.append(new_pr.sha)
+                p = Process(target=test, args=(new_pr,))
+                processes.append(p)
+                p.start()
+            time.sleep(5)
+        time.sleep(600)
 
-    new_prs = get_new_prs()
-    for pr in new_prs:
-        if pr.branch == 'TCGA_BreastCancer_CNV':
-            test_pr = pr
-    print(test_pr.branch)
-    test(test_pr)
+    # new_prs = get_new_prs()
+    # for pr in new_prs:
+    #     if pr.branch == 'TCGA_BreastCancer_CNV':
+    #         test_pr = pr
+    # print(test_pr.branch)
+    # test(test_pr)

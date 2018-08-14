@@ -31,6 +31,6 @@ RUN conda install -y numpy=1.13.0 hdf5=1.10.1 xlrd=1.1.0 markdown requests h5py 
 RUN pip install fastnumbers
 
 # Install R packages
-RUN R -e "install.packages(c('tidyverse'), repos='https://rweb.crmda.ku.edu/cran/', clean=TRUE)"
+RUN R -e "install.packages(c('tidyverse', 'XML'), repos='https://rweb.crmda.ku.edu/cran/', clean=TRUE)"
 
 CMD ["python3", "/app/WishBuilder-CLI/WishBuilder.py"]

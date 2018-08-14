@@ -35,7 +35,7 @@ class GithubDao:
     def get_pr(self, pr_num):
         all_prs = self.get_prs()
         for pr in all_prs:
-            if pr.pr == pr_num:
+            if pr.pr == int(pr_num):
                 return pr
         return None
 

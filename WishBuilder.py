@@ -9,12 +9,10 @@ import time
 import json
 import pickle
 from multiprocessing import Process
-
-sql_dao = None
-git_dao = None
+import psutil
 
 
-def check_history():
+def check_history(sql_dao, git_dao):
     history = sql_dao.get_all()
     prs = git_dao.get_prs()
 
@@ -27,7 +25,7 @@ def check_history():
     return None
 
 
-def get_new_prs():
+def get_new_prs(sql_dao, git_dao):
     full_history = sql_dao.get_all()
     prs = git_dao.get_prs()
     if not full_history:
@@ -42,7 +40,7 @@ def get_new_prs():
     return new_pulls
 
 
-def test(pr: PullRequest):
+def test(pr: PullRequest, sql_dao):
     cwd = os.getcwd()
     try:
         print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
@@ -95,7 +93,7 @@ def test(pr: PullRequest):
         pr.check_if_passed()
         sql_dao.update(pr)
         if pr.passed:
-            convert_parquet(pr, raw_data_storage)
+            convert_parquet(pr, raw_data_storage, git_dao)
     except Exception as e:
         pr.status = 'Error'
         pr.passed = False
@@ -112,7 +110,7 @@ def fix_files():
         shutil.move('test_metadata.tsv', 'test_Clinical.tsv')
 
 
-def convert_parquet(pr: PullRequest, raw_data_storage):
+def convert_parquet(pr: PullRequest, raw_data_storage, git_dao):
     cwd = os.getcwd()
     os.chdir(raw_data_storage)
     geney_dataset_path = os.path.join(GENEY_DATA_LOCATION, pr.branch)
@@ -228,7 +226,7 @@ if __name__ == '__main__':
     history = []
     while True:
         print("Check for prs", flush=True)
-        new_prs = get_new_prs()
+        new_prs = get_new_prs(sql_dao, git_dao)
         for pull in new_prs:
             if pull.sha not in history:
                 queue.append(pull)
@@ -236,10 +234,15 @@ if __name__ == '__main__':
             for p in processes:
                 if not p.is_alive():
                     processes.remove(p)
+                else:
+                    if psutil.Process(p.pid).memory_info().rss > 3e+10:
+                        print('Memory limit reached!', flush=True)
+                        p.terminate()
+                        break
             if len(processes) < MAX_NUM_PROCESSES:
                 new_pr = queue.pop()
                 history.append(new_pr.sha)
-                p = Process(target=test, args=(new_pr,))
+                p = Process(target=test, args=(new_pr, sql_dao))
                 processes.append(p)
                 p.start()
             time.sleep(5)
@@ -247,7 +250,8 @@ if __name__ == '__main__':
 
     # new_prs = get_new_prs()
     # for pr in new_prs:
-    #     if pr.branch == 'TCGA_BreastCancer_CNV':
+    #     if 'BiomarkerBenchmark_GSE37745' in pr.branch or 'BiomarkerBenchmark_GSE4271' in pr.branch:
+    #         test(pr)
     #         test_pr = pr
     # print(test_pr.branch)
     # test(test_pr)

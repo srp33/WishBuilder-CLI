@@ -3,7 +3,7 @@ FROM ubuntu:16.04
 # Set the working directory to /app
 WORKDIR /app
 
-# Install anaconda3
+# Configure anaconda3
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 # This is prep for installing R
@@ -26,10 +26,11 @@ RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
     /bin/bash ~/anaconda.sh -b -p /opt/conda && \
     rm ~/anaconda.sh
 ENV PATH /opt/conda/bin:$PATH
+RUN echo "unset SUDO_UID SUDO_GID SUDO_USER" >> ~/.bashrc
 RUN conda install -y numpy=1.13.0 hdf5=1.10.1 xlrd=1.1.0 markdown requests h5py yaml pip pandas=0.22.0
 RUN pip install fastnumbers pyarrow
 
 # Install R packages
-RUN R -e "install.packages(c('tidyverse'), repos='https://rweb.crmda.ku.edu/cran/', clean=TRUE)"
+RUN R -e "install.packages(c('tidyverse', 'XML'), repos='https://rweb.crmda.ku.edu/cran/', clean=TRUE)"
 
 CMD ["python3", "/app/WishBuilder-CLI/WishBuilder.py"]

@@ -3,7 +3,7 @@ FROM ubuntu:16.04
 # Set the working directory to /app
 WORKDIR /app
 
-# Configure anaconda3
+# Configure encodings
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 # This is prep for installing R

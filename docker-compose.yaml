@@ -2,7 +2,7 @@ version: '2'
 
 services:
   wb-container:
-#    image: "srp33/wishbuilder-cli"
+    image: "srp33/wishbuilder-cli"
     build:
       context: .
       dockerfile: Dockerfile

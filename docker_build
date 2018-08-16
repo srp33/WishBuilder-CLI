@@ -1,0 +1,19 @@
+#! /bin/bash
+
+tmpDir=/tmp/wishbuilder-cli-docker-build
+
+mkdir -p $tmpDir
+rm -rf $tmpDir/*
+
+cp -v Dockerfile $tmpDir
+cp -v *.py $tmpDir
+cp -v LICENSE $tmpDir
+cp -v README.md $tmpDir
+
+cd $tmpDir
+docker build -t srp33/wishbuilder-cli .
+#docker login -u=srp33
+docker push srp33/wishbuilder-cli
+
+#cd -
+#rm -rf $tmpDir

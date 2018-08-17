@@ -2,7 +2,7 @@ import gzip
 from Constants import *
 import pandas as pd
 from PullRequest import PullRequest
-
+import os
 
 def one_feature(file):
     df = pd.read_csv(file, sep='\t')

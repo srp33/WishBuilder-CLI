@@ -1,12 +1,11 @@
-import sqlite3
-import json
+import json, os, sqlite3
 from PullRequest import PullRequest
 from Constants import SQLITE_FILE
-import os
-
 
 class SqliteDao:
     def __init__(self, db_file):
+        print("Attempting to connect to database file at " + db_file + ".")
+
         self.__file = db_file
         if not os.path.exists(db_file):
             self.create_db()
@@ -132,14 +131,15 @@ class SqliteDao:
                     else:
                         status = 'Failed'
 
-                if user == 'glenrs':
-                    email = 'grexsumsion@gmail.com'
-                elif user == 'btc36':
-                    email = 'benjamincookson94@gmail.com'
-                elif user == 'kimballh':
-                    email = 'hillkimball@gmail.com'
-                else:
-                    email = None
+#                if user == 'glenrs':
+#                    email = 'grexsumsion@gmail.com'
+#                elif user == 'btc36':
+#                    email = 'benjamincookson94@gmail.com'
+#                elif user == 'kimballh':
+#                    email = 'hillkimball@gmail.com'
+#                else:
+#                    email = None
+                email = "steve.piccolo@gmail.com"
 
                 if sha == 'null':
                     sha = str(uuid.uuid4())
@@ -197,7 +197,7 @@ class SqliteDao:
         self.close()
 
 
-if __name__ == '__main__':
-    dao = SqliteDao(SQLITE_FILE)
-    dao.remove_pr(353)
-    # pull.send_report(recipient='hillkimball@gmail.com')
+#if __name__ == '__main__':
+#    dao = SqliteDao(SQLITE_FILE)
+#    dao.remove_pr(353)
+#    # pull.send_report(recipient='hillkimball@gmail.com')

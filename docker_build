@@ -9,7 +9,6 @@ cp -v Dockerfile $tmpDir
 cp -v *.py $tmpDir
 cp -v LICENSE $tmpDir
 cp -v README.md $tmpDir
-cp -rv ShapeShifter $tmpDir
 
 cd $tmpDir
 docker build -t srp33/wishbuilder-cli .

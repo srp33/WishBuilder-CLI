@@ -1,9 +1,8 @@
-import requests
-from PullRequest import PullRequest
 import os
+import requests
+import sys
+from PullRequest import PullRequest
 from Constants import REPO_URL, TESTING_LOCATION
-from private import GH_TOKEN
-
 
 class GithubDao:
     def __init__(self, repo_url: str, token: str):
@@ -19,6 +18,10 @@ class GithubDao:
     def get_prs(self):
         url = self.repo_url + 'pulls'
         payload = requests.get(url, headers=self.head).json()
+
+        if "message" in payload:
+            print("Message from GitHub: " + payload["message"])
+            sys.exit(1)
         prs = []
         if type(payload) == 'dict':
             return []
@@ -82,18 +85,19 @@ class GithubDao:
         url = '{repo}pulls/{num}/merge?access_token={token}'.format(repo=self.repo_url, num=pr.pr, token=self.token)
         response = requests.put(url, json=request)
         if 'Pull Request successfully merged' in response.json()['message']:
-            print('Pull Request #{num}, Branch \"{branch}\", has been merged to WishBuilder Master branch'.format(
-                num=pr.pr, branch=pr.branch), flush=True)
+            print('Pull Request #{num}, Branch \"{branch}\", has been merged to WishBuilder Master branch'.format(num=pr.pr, branch=pr.branch), flush=True)
             return True
         else:
-            print('Pull Request #{num}, Branch \"{branch}\", could not be merged to WishBuilder Master branch'.format(
-                num=pr.pr, branch=pr.branch), flush=True)
+            print('Pull Request #{num}, Branch \"{branch}\", could not be merged to WishBuilder Master branch'.format(num=pr.pr, branch=pr.branch), flush=True)
+            print(response)
+            print(response.json()['message'])
             return False
 
     def get_email(self, sha: str) -> str:
         url = '{}git/commits/{}'.format(self.repo_url, sha)
         response = requests.get(url, headers=self.head).json()
-        email = response['author']['email']
+        #email = response['author']['email']
+        email = "steve.piccolo@gmail.com"
         return email
 
     def make_request(self, url: str, request_type: str='get', authorization: str=None, full_url: bool = False):
@@ -145,11 +149,11 @@ class GithubDao:
         return local_filename
 
 
-if __name__ == '__main__':
-    dao = GithubDao(REPO_URL, GH_TOKEN)
-    test_pr = dao.get_pr(358)
-    if test_pr:
-        files, download_urls = dao.get_files_changed(test_pr)
-        download_urls.extend(dao.get_existing_files(test_pr.branch, files))
-        for file in download_urls:
-            print(file)
+#if __name__ == '__main__':
+#    dao = GithubDao(REPO_URL, GH_TOKEN)
+#    test_pr = dao.get_pr(358)
+#    if test_pr:
+#        files, download_urls = dao.get_files_changed(test_pr)
+#        download_urls.extend(dao.get_existing_files(test_pr.branch, files))
+#        for file in download_urls:
+#            print(file)

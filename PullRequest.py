@@ -1,11 +1,9 @@
-import sys
+import os, sys
 from Report import Report
 from datetime import datetime, timedelta
 import markdown
 import smtplib
 from email.message import EmailMessage
-sys.path.append('/Shared')
-from private import WISHBUILDER_EMAIL, WISHBUILDER_PASS
 
 class PullRequest:
     def __init__(self, pr: int, branch: str, date: str, e_date: float, feature_variables: int, meta_variables: int,
@@ -52,12 +50,12 @@ class PullRequest:
         html = markdown.markdown(md)
         return html
 
-    def send_report(self, recipient: str='user'):
+    def send_report(self, loginEmail, loginPassword, recipient='user'):
         if recipient == 'user':
             recipient = self.email
         s = smtplib.SMTP(host='mail.kimball-hill.com', port=587)
         s.starttls()
-        s.login(WISHBUILDER_EMAIL, WISHBUILDER_PASS)
+        s.login(loginEmail, loginPassword)
 
         if self.passed:
             subject = "Passed: {}".format(self.branch)
@@ -101,8 +99,6 @@ class PullRequest:
         else:
             self.status = 'Failed'
             return False
-
-
 
 if __name__=='__main__':
     pr = PullRequest(1, 'branch', '1/1/11', 1245.515, 1, 1, False, 1, 1, 'sha', '124', 'user', 'email', 'status')

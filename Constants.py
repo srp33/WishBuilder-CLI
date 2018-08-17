@@ -1,14 +1,14 @@
 import os
 
-MAX_NUM_PROCESSES = 1
+MAX_NUM_PROCESSES = int(os.environ["MAX_NUM_PROCESSES"])
 REPO_URL = 'https://api.github.com/repos/srp33/WishBuilder/'
 WB_DIRECTORY = "/Shared"
 PRIVATE_DATA = os.path.join(WB_DIRECTORY, 'private.py')
 SQLITE_FILE = os.path.join(WB_DIRECTORY, 'history.sql')
+PRS_TO_DELETE_FILE = os.path.join(WB_DIRECTORY, 'prs_to_delete.txt')
 TESTING_LOCATION = os.path.join(WB_DIRECTORY, 'testing/')
 RAW_DATA_STORAGE = os.path.join(WB_DIRECTORY, 'RawDatasets/')
 GENEY_DATA_LOCATION = os.path.join(WB_DIRECTORY, 'GeneyDatasets/')
-GENEY_CONVERTER = os.path.join(WB_DIRECTORY, 'GeneyTypeConverter/typeconverter.py')
 MIN_TEST_CASES = 8
 MIN_FEATURES = 2
 MIN_SAMPLES = 2

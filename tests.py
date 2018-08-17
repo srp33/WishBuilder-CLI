@@ -8,7 +8,6 @@ import gzip
 import yaml
 from yaml.scanner import ScannerError
 
-
 def check_files_changed(pr: PullRequest, files):
     bad_files = []
     report = ""
@@ -34,10 +33,8 @@ def check_files_changed(pr: PullRequest, files):
             return valid, False
     return valid, True
 
-
 def listdir_fullpath(directory: str) -> []:
     return [os.path.join(directory, file) for file in os.listdir(directory)]
-
 
 def get_files(directory: str) -> []:
     files = []
@@ -49,38 +46,40 @@ def get_files(directory: str) -> []:
             files.append(file)
     return files
 
-
 def test_folder(pr: PullRequest):
     report = '### Testing Directory . . .\n\n'
     passed = True
     file_list = get_files(os.path.join(TESTING_LOCATION, pr.branch))
+
     for path in file_list:
         if path[0] != '.':
             # path = "{}{}/{}".format(TESTING_LOCATION, pr.branch, path)
-            file_check_string = str(
-                subprocess.check_output(['file', '-b', path]))
+            file_check_string = str(subprocess.check_output(['file', '-b', path]))
+
             if not re.search(r"ASCII", file_check_string) and not re.search(r"empty", file_check_string) and not \
                     re.search(r"script text", file_check_string) and not re.search(r"directory", file_check_string):
                 report += "{0}\t{1} is not a text file.\n\n".format(RED_X, path)
                 passed = False
+
         if os.path.getsize(path) > 1000000:
-            report += RED_X + '\t' + path + ' is too large ( ' + str(int(os.path.getsize(path) / 1000000)) + \
-                      'MB; max size: 1MB)\n\n'
+            report += RED_X + '\t' + path + ' is too large ( ' + str(int(os.path.getsize(path) / 1048576)) + 'MB; max size: 1MB)\n\n'
             passed = False
+
     if TEST_DATA_NAME in file_list or TEST_META_DATA_NAME in file_list or ".gitignore" in file_list:
-        report += '{0}\t Neither {1} nor {2} nor .gitignore should exist in directory.\n\n'\
-            .format(RED_X, TEST_DATA_NAME, TEST_META_DATA_NAME)
+        report += '{0}\t Neither {1} nor {2} nor .gitignore should exist in directory.\n\n'.format(RED_X, TEST_DATA_NAME, TEST_META_DATA_NAME)
         passed = False
+
     if passed:
         report += '#### Results: PASS\n---\n'
         print('\t\tPASS', flush=True)
     else:
         report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
         print('\t\tFAIL', flush=True)
+
     pr.report.directory_test_report = report
     pr.report.pass_directory_test = passed
-    return passed
 
+    return passed
 
 def test_config(pr: PullRequest):
     passed = True

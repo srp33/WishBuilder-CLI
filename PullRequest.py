@@ -1,10 +1,11 @@
+import sys
 from Report import Report
 from datetime import datetime, timedelta
 import markdown
 import smtplib
 from email.message import EmailMessage
+sys.path.append('/Shared')
 from private import WISHBUILDER_EMAIL, WISHBUILDER_PASS
-
 
 class PullRequest:
     def __init__(self, pr: int, branch: str, date: str, e_date: float, feature_variables: int, meta_variables: int,

@@ -1,7 +1,7 @@
+import sys
 from tests import *
 from GithubDao import GithubDao
 from SqliteDao import SqliteDao
-from private import GH_TOKEN
 from compare import *
 from ShapeShifter import ShapeShifter
 import shutil
@@ -10,7 +10,8 @@ import json
 import pickle
 from multiprocessing import Process
 import psutil
-
+sys.path.append('/Shared')
+from private import GH_TOKEN
 
 def check_history(sql_dao, git_dao):
     history = sql_dao.get_all()

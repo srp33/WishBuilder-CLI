@@ -1,8 +1,7 @@
-import gzip
+import gzip, os, sys
 from Constants import *
 import pandas as pd
 from PullRequest import PullRequest
-import os
 
 def one_feature(file):
     df = pd.read_csv(file, sep='\t')
@@ -10,7 +9,6 @@ def one_feature(file):
         return True
     else:
         return False
-
 
 # Are all test files in correct format?
 def check_test_files(test_file_list):
@@ -89,7 +87,6 @@ def check_test_files(test_file_list):
         report += "#### Results: FAIL\n---\n"
 
     return report, passed
-
 
 # Check if the column headers of the test file are "Sample", "Variable", and "Value"
 def check_test_columns(col_headers, file):
@@ -232,13 +229,13 @@ def check_test_for_every_data(pr: PullRequest, file_list):
     bad_test_files = []
     passed = True
 
-    for file in file_list:
-        if file.endswith(".gz"):
-            data_files.append(file)
-            bad_data_files.append(file)
-        elif "test" in file:
-            test_files.append(file)
-            bad_test_files.append(file)
+    for f in file_list:
+        if f.endswith(".tsv.gz"):
+            data_files.append(f)
+            bad_data_files.append(f)
+        elif f.startswith("test_"):
+            test_files.append(f)
+            bad_test_files.append(f)
 
     for data in data_files:
         for test in test_files:
@@ -246,19 +243,15 @@ def check_test_for_every_data(pr: PullRequest, file_list):
                 bad_data_files.remove(data)
                 bad_test_files.remove(test)
 
-    if len(bad_data_files) + len(bad_test_files) > 0:
+    if (len(bad_data_files) + len(bad_test_files)) > 0:
         passed = False
 
-    # for file in data_files:
-    #     convert(file)
-
     if not passed:
-        for file in bad_data_files:
-            report += "{}\tData file {} is missing required test file \"test_{}.tsv\"\n\n"\
-                .format(RED_X, file, file.rstrip('.tsv.gz'))
-        for file in bad_test_files:
-            report += "{}\tTest file {} is missing required data file \"{}.gz\"\n\n"\
-                .format(RED_X, file, file.lstrip('test_'))
+        for f in bad_data_files:
+            report += "{}\tData file {} is missing required test file \"test_{}.tsv\"\n\n".format(RED_X, f, f.rstrip('.tsv.gz'))
+        for f in bad_test_files:
+            report += "{}\tTest file {} is missing required data file \"{}.gz\"\n\n".format(RED_X, f, f.lstrip('test_'))
+
         report += "#### Results: FAIL\n\n\n"
         pr.report.key_test_report = report
         pr.report.pass_key_test = False
@@ -267,51 +260,50 @@ def check_test_for_every_data(pr: PullRequest, file_list):
         report += r
         pr.report.key_test_report = report
         pr.report.pass_key_test = passed
+
         if passed:
             report, passed, num_samples = compare_files(data_files, test_files)
             pr.num_samples = num_samples
             pr.report.data_tests_report = report
             pr.report.pass_data_tests = passed
+
     return passed
 
+#def convert(file):
+#    if 'metadata' in file:
+#        df = pd.read_csv(file, sep='\t')
+#        if len(df.columns.values) == 3:
+#            if 'Variable' in df.columns.values and 'Value' in df.columns.values:
+#                metadata = {}
+#                with gzip.open(file) as fp:
+#                    fp.readline()
+#                    for line in fp:
+#                        data = line.decode().rstrip('\n').split('\t')
+#                        metadata.setdefault(data[0], {})[data[1]] = data[2]
+#                df = pd.DataFrame(metadata).T
+#                df.to_csv(file, compression='gzip', sep='\t', index_label='Sample')
 
-def convert(file):
-    if 'metadata' in file:
-        df = pd.read_csv(file, sep='\t')
-        if len(df.columns.values) == 3:
-            if 'Variable' in df.columns.values and 'Value' in df.columns.values:
-                metadata = {}
-                with gzip.open(file) as fp:
-                    fp.readline()
-                    for line in fp:
-                        data = line.decode().rstrip('\n').split('\t')
-                        metadata.setdefault(data[0], {})[data[1]] = data[2]
-                df = pd.DataFrame(metadata).T
-                df.to_csv(file, compression='gzip', sep='\t', index_label='Sample')
-
-
-def create_md_table(columns, rows, file_path):
-    table = ''
-    with gzip.open(file_path, 'r') as inFile:
-        for i in range(rows):
-            line = inFile.readline().decode().rstrip('\n').split('\t')
-            if len(line) < columns:
-                columns = len(line)
-            if i == 0:
-                table = '\n### First ' + \
-                        str(columns) + ' columns and ' + str(rows) + \
-                        ' rows of ' + file_path + ':\n\n'
-            if i == 1:
-                for j in range(columns):
-                    table += '|\t---\t'
-                table += '|\n'
-            table = table + '|'
-            for j in range(columns):
-                table = table + '\t' + line[j] + '\t|'
-            table = table + '\n'
-    table += '\n'
-    return table
-
+#def create_md_table(columns, rows, file_path):
+#    table = ''
+#    with gzip.open(file_path, 'r') as inFile:
+#        for i in range(rows):
+#            line = inFile.readline().decode().rstrip('\n').split('\t')
+#            if len(line) < columns:
+#                columns = len(line)
+#            if i == 0:
+#                table = '\n### First ' + \
+#                        str(columns) + ' columns and ' + str(rows) + \
+#                        ' rows of ' + file_path + ':\n\n'
+#            if i == 1:
+#                for j in range(columns):
+#                    table += '|\t---\t'
+#                table += '|\n'
+#            table = table + '|'
+#            for j in range(columns):
+#                table = table + '\t' + line[j] + '\t|'
+#            table = table + '\n'
+#    table += '\n'
+#    return table
 
 def create_html_table(columns, rows, file_path):
     table = '\n### First ' + \
@@ -353,4 +345,3 @@ def create_html_table(columns, rows, file_path):
 # outFile.write(output)
 #
 # outFile.close()
-

@@ -47,10 +47,20 @@ class GithubDao:
         payload = requests.get(url, headers=self.head).json()
         files = []
         download_urls = []
+        removed_files = []
+
         for i in range(len(payload)):
+            if payload[i]['status'] == 'removed':
+                removed_files.append(payload[i]['filename'])
+                continue
+
+            if payload[i]['status'] == 'renamed':
+                removed_files.append(payload[i]['previous_filename'])
+
             files.append(payload[i]['filename'])
             download_urls.append(payload[i]['raw_url'])
-        return files, download_urls
+
+        return files, download_urls, removed_files
 
     def check_files(self, pr: PullRequest):
         url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
@@ -116,18 +126,26 @@ class GithubDao:
         response = requests.get(url, headers=self.head).json()
         return response
 
-    def get_existing_files(self, directory, files):
+    def get_existing_files(self, directory, files, removed_files):
         response = self.get_contents(directory)
+
         if type(response) is dict:
             if response['message']:
                 return []
+
         existing_files = []
         for i in range(len(response)):
-            if response[i]['path'] not in files:
+            file_path = response[i]['path']
+
+            if file_path in removed_files:
+                continue
+
+            if file_path not in files:
                 if response[i]['type'] == 'dir':
-                    existing_files.extend(self.get_existing_files(response[i]['path'], files))
+                    existing_files.extend(self.get_existing_files(file_path, files, removed_files))
                 elif response[i]['type'] == 'file':
                     existing_files.append(response[i]['download_url'])
+
         return existing_files
 
     def download_file(self, url: str, destination: str= './'):

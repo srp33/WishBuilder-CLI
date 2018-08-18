@@ -38,7 +38,6 @@ def get_exception_stack(e):
         for line in item[4]:
             error += ' ' + line.lstrip()
 
-    #error += "<br>\n<br>" + getattr(e, 'message', repr(e))
     error += "<br>\n<br><b>" + str(e) + "</b>"
 
     return error
@@ -60,22 +59,23 @@ def test(pr: PullRequest, sql_dao):
         pr.email = git_dao.get_email(pr.sha)
         sql_dao.update(pr)
 
-        files, download_urls = git_dao.get_files_changed(pr)
+        files, download_urls, removed_files = git_dao.get_files_changed(pr)
         valid, description_only = check_files_changed(pr, files)
+
         valid = True
         if valid:
             pr.report.valid_files = True
             if description_only:
                 git_dao.merge(pr)
-                geney_convert(pr)
+                convert_parquet(pr, raw_data_storage, git_dao)
                 pr.set_updated()
             else:
                 # Download Files from Github and put them in the testing directory
-                download_urls.extend(git_dao.get_existing_files(pr.branch, files))
-                download_urls.extend(git_dao.get_existing_files('Helper', files))
+                download_urls.extend(git_dao.get_existing_files(pr.branch, files, removed_files))
+                download_urls.extend(git_dao.get_existing_files('Helper', files, []))
 
-                for file in download_urls:
-                    git_dao.download_file(file, TESTING_LOCATION)
+                for f in download_urls:
+                    git_dao.download_file(f, TESTING_LOCATION)
 
                 os.chdir(os.path.join(TESTING_LOCATION, pr.branch))
 
@@ -241,6 +241,7 @@ if __name__ == '__main__':
     GH_TOKEN = os.environ['GH_TOKEN']
     WISHBUILDER_EMAIL = os.environ['WISHBUILDER_EMAIL']
     WISHBUILDER_PASS = os.environ['WISHBUILDER_PASS']
+    SLEEP_SECONDS = int(os.environ['SLEEP_SECONDS'])
 
     setup()
     sql_dao = SqliteDao(SQLITE_FILE)
@@ -282,7 +283,8 @@ if __name__ == '__main__':
                 processes.append(p)
                 p.start()
             time.sleep(5)
-        time.sleep(600)
+
+        time.sleep(SLEEP_SECONDS)
 
     # new_prs = get_new_prs()
     # for pr in new_prs:

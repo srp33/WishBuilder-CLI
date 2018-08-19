@@ -3,8 +3,10 @@ from Constants import *
 import pandas as pd
 from PullRequest import PullRequest
 
-def one_feature(file):
-    df = pd.read_csv(file, sep='\t')
+def one_feature(filePath):
+    print("Reading data for the one_feature function from {}".format(filePath))
+    df = pd.read_csv(filePath, sep='\t')
+
     if len(df.columns.values) > 2:
         return True
     else:
@@ -109,13 +111,11 @@ def check_test_columns(col_headers, file):
 
     return passed, report
 
-
 def compare_files(data_file_list, test_file_list):
     passed_all = True
     report = "### Comparing Files:\n\n"
     all_samples = {}
     for file in data_file_list:
-
         passed = True
         column_headers = []  # List of column headers AKA feature names
         data_row_count = 0  # Row count in data file
@@ -218,7 +218,6 @@ def compare_files(data_file_list, test_file_list):
     else:
         report += "#### Results: FAIL\n---\n"
     return report, passed_all, num_samples
-
 
 # Check if there is a test file for every data file
 def check_test_for_every_data(pr: PullRequest, file_list):

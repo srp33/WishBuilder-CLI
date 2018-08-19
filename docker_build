@@ -6,6 +6,7 @@ mkdir -p $tmpDir
 rm -rf $tmpDir/*
 
 cp -v Dockerfile $tmpDir
+cp -v *.sh $tmpDir
 cp -v *.py $tmpDir
 cp -v LICENSE $tmpDir
 cp -v README.md $tmpDir

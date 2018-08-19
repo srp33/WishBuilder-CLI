@@ -85,7 +85,6 @@ def test(pr: PullRequest, sql_dao):
                 test_files(pr)
 
                 original_directory = os.listdir(os.getcwd())
-                original_directory.append('test_Clinical.tsv')
 
                 # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
                 if test_scripts(pr):

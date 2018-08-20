@@ -1,6 +1,7 @@
 import json, os, sqlite3
 from PullRequest import PullRequest
 from Constants import SQLITE_FILE
+from Shared import *
 
 class SqliteDao:
     def __init__(self, db_file):

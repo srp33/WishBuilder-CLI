@@ -128,7 +128,6 @@ class Report:
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, indent=4)
 
-
 # if __name__ == '__main__':
     # pr = PullRequest(1, 'branch', '1/1/11', 1245.515, 1, 1, False, 1, 1, 'sha', '124', 'user', 'email', 'status')
     # report = Report(pr)

@@ -1,12 +1,8 @@
-from PullRequest import PullRequest
-from Constants import *
-import os
-import os.path
-import subprocess
-import re
-import gzip
-import yaml
+import gzip, os, os.path, re, subprocess, yaml
 from yaml.scanner import ScannerError
+from Constants import *
+from PullRequest import PullRequest
+from Shared import *
 
 def check_files_changed(pr: PullRequest, files):
     bad_files = []
@@ -47,6 +43,8 @@ def get_files(directory: str) -> []:
     return files
 
 def test_folder(pr: PullRequest):
+    printToLog('Testing - test_folder', pr)
+
     report = '### Testing Directory . . .\n\n'
     passed = True
     file_list = get_files(os.path.join(TESTING_LOCATION, pr.branch))
@@ -73,10 +71,10 @@ def test_folder(pr: PullRequest):
 
     if passed:
         report += '#### Results: PASS\n---\n'
-        print('\t\tPASS - test_folder', flush=True)
+        printToLog('PASS - test_folder', pr)
     else:
         report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
-        print('\t\tFAIL - test_folder', flush=True)
+        printToLog('FAIL - test_folder', pr)
 
     pr.report.directory_test_report = report
     pr.report.pass_directory_test = passed
@@ -84,6 +82,8 @@ def test_folder(pr: PullRequest):
     return passed
 
 def test_config(pr: PullRequest):
+    printToLog('Testing - test_config', pr)
+
     passed = True
     report = '### Testing Configuration File . . .\n\n'
     config_path = "{}{}/{}".format(TESTING_LOCATION, pr.branch, CONFIG_FILE_NAME)
@@ -123,21 +123,23 @@ def test_config(pr: PullRequest):
         passed = False
     if passed:
         report += '#### Results: PASS\n---\n'
-        print('\t\tPASS - test_config', flush=True)
+        printToLog('PASS - test_config', pr)
     else:
         report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
-        print('\t\tFAIL - test_config', flush=True)
+        printToLog('FAIL - test_config', pr)
     pr.report.configuration_test_report = report
     pr.report.pass_configuration_test = passed
 
     return passed
 
 def test_files(pr: PullRequest):
+    printToLog('Testing - test_files', pr)
+
     passed = True
     report = '\n### Testing file paths:\n\n'
     report += '### Running install\n\n'
     script = os.path.join(TESTING_LOCATION, pr.branch, INSTALL_FILE_NAME)
-    result, successful = test_bash_script(script)
+    result, successful = test_bash_script(script, pr)
     report += result
     if not successful:
         passed = False
@@ -149,20 +151,22 @@ def test_files(pr: PullRequest):
             passed = False
     if passed:
         report += '#### Results: PASS\n---\n'
-        print('\t\tPASS - test_files', flush=True)
+        printToLog('PASS - test_files', pr)
     else:
         report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
-        print('\t\tFAIL - test_files', flush=True)
+        printToLog('FAIL - test_files', pr)
     pr.report.pass_file_test = passed
     pr.report.file_test_report = report
     return passed
 
 def test_scripts(pr: PullRequest):
+    printToLog('Testing - test_scripts', pr)
+
     report = "### Running user scripts . . .\n\n"
     passed = True
     for script in USER_SCRIPTS:
         script = os.path.join(TESTING_LOCATION, pr.branch, script)
-        result, successful = test_bash_script(script)
+        result, successful = test_bash_script(script, pr)
         report += result
         if not successful:
             passed = False
@@ -181,20 +185,22 @@ def test_scripts(pr: PullRequest):
 
     return passed
 
-def test_bash_script(bash_script_name):
+def test_bash_script(bash_script_name, pr: PullRequest):
+    printToLog('Testing - test_bash_script - {}'.format(os.path.basename(bash_script_name)), pr)
+
     report = "Executing " + bash_script_name + ": "
     passed = True
     # os.system('bash {}'.format(bash_script_name))
     results = subprocess.run(
-        'bash {}'.format(bash_script_name), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        'bash {} >> {}'.format(bash_script_name, pr.log_file_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     if results.returncode != 0:
         report += '\n\n' + RED_X + '\t' + bash_script_name.split('/')[-1] + ' returned an error:\n```bash\n' + \
                      results.stderr.decode().rstrip('\n') + '\n```\n\n'
         passed = False
-        print('\t\tFAIL - test_bash_script', flush=True)
+        printToLog('FAIL - test_bash_script - {}'.format(os.path.basename(bash_script_name)), pr)
     else:
         report += "Success\n\n"
-        print('\t\tPASS - test_bash_script', flush=True)
+        printToLog('PASS - test_bash_script - {}'.format(os.path.basename(bash_script_name)), pr)
     return report, passed
 
 def check_zip():
@@ -211,6 +217,8 @@ def check_zip():
     return report, passed
 
 def test_cleanup(original_directory, pr: PullRequest):
+    printToLog('Testing - test_cleanup', pr)
+
     os.system('chmod +x ./' + CLEANUP_FILE_NAME)
     os.system('./' + CLEANUP_FILE_NAME)
 
@@ -225,10 +233,10 @@ def test_cleanup(original_directory, pr: PullRequest):
 
     if passed:
         report += '#### Results: PASS\n---\n'
-        print('\t\tPASS - test_cleanup', flush=True)
+        printToLog('PASS - test_cleanup', pr)
     else:
         report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
-        print('\t\tFAIL - test_cleanup', flush=True)
+        printToLog('FAIL - test_cleanup', pr)
 
     pr.report.cleanup_report = report
     pr.report.pass_cleanup = passed

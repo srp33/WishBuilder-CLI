@@ -28,3 +28,4 @@ REQUIRED_FILES = [DOWNLOAD_FILE_NAME, INSTALL_FILE_NAME, PARSE_FILE_NAME,
 REQUIRED_CONFIGS = ['title', 'featureDescription', 'featureDescriptionPlural']
 # These are the executables that will be ran to produce the data and metadata files (They are executed in this order)
 USER_SCRIPTS = [INSTALL_FILE_NAME, DOWNLOAD_FILE_NAME, PARSE_FILE_NAME]
+LOG_FILE_NAME = "log.txt"

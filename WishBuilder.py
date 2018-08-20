@@ -1,4 +1,4 @@
-import json, os, pickle, psutil, shutil, sys, time, inspect
+import json, logging, os, pickle, psutil, shutil, sys, time, inspect
 from compare import *
 from multiprocessing import Process
 from GithubDao import GithubDao
@@ -6,6 +6,22 @@ from SqliteDao import SqliteDao
 sys.path.insert(0, '/ShapeShifter')
 import ShapeShifter
 from tests import *
+from Constants import *
+from Shared import *
+from capturer import CaptureOutput
+
+#class StreamToLogger(object):
+#    def __init__(self, logger, log_level=logging.INFO):
+#        self.logger = logger
+#        self.log_level = log_level
+#        self.linebuf = ''
+#
+#    def write(self, buf):
+#        for line in buf.rstrip().splitlines():
+#            self.logger.log(self.log_level, line.rstrip())
+#
+#    def flush(self):
+#        pass
 
 def get_new_prs(sql_dao, git_dao):
     full_history = sql_dao.get_all()
@@ -45,19 +61,31 @@ def get_exception_stack(e):
 def test(pr: PullRequest, sql_dao):
     cwd = os.getcwd()
     try:
-        print("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), flush=True)
-        cleanup(pr)
-        start = time.time()
-        raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
+        shutil.rmtree(os.path.join(TESTING_LOCATION, pr.branch), ignore_errors=True)
+        os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
 
-        if pr.branch not in os.listdir(TESTING_LOCATION):
-            os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
-        else:
-            raise EnvironmentError("Directory {} Already Exists".format(os.path.join(TESTING_LOCATION, pr.branch)))
+#        logging.basicConfig(
+#            level=logging.DEBUG,
+#            #format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+#            format='%(asctime)s - %(message)s',
+#            filename=log_file_path,
+#            filemode='a')
+#
+#        thread_logger = logging.getLogger(new_pr.branch)
+#        sys.stdout = StreamToLogger(thread_logger, logging.INFO)
+#        sys.stderr = StreamToLogger(thread_logger, logging.ERROR)
+#        thread_logger.info("Starting logger for " + new_pr.branch + "...")
+
+        printToLog("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), pr)
 
         pr.status = 'In progress'
         pr.email = git_dao.get_email(pr.sha)
+        pr.log_file_path = os.path.join(os.path.join(TESTING_LOCATION, pr.branch), LOG_FILE_NAME)
         sql_dao.update(pr)
+
+        cleanup(pr)
+        start = time.time()
+        raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
 
         files, download_urls, removed_files = git_dao.get_files_changed(pr)
         valid, description_only = check_files_changed(pr, files)
@@ -66,8 +94,8 @@ def test(pr: PullRequest, sql_dao):
         if valid:
             pr.report.valid_files = True
             if description_only:
+                convert_parquet(pr, raw_data_storage)
                 git_dao.merge(pr)
-                convert_parquet(pr, raw_data_storage, git_dao)
                 pr.set_updated()
             else:
                 # Download Files from Github and put them in the testing directory
@@ -109,23 +137,27 @@ def test(pr: PullRequest, sql_dao):
         sql_dao.update(pr)
 
         if pr.passed:
-            convert_parquet(pr, raw_data_storage, git_dao)
+            convert_parquet(pr, raw_data_storage)
+            git_dao.merge(pr)
     except Exception as e:
         pr.status = 'Error'
         pr.passed = False
         pr.report.other = True
         #pr.report.other_content = '\n### WishBuilder Error, we are working on it and will rerun your request when we fix the issue. (Error message: {})\n\n'.format(e)
         pr.report.other_content = get_exception_stack(e)
+
     os.chdir(cwd)
-    cleanup(pr)
     send_report(pr)
+    cleanup(pr)
 
 def fix_files():
     files = os.listdir('./')
     if 'test_metadata.tsv' in files:
         shutil.move('test_metadata.tsv', 'test_Clinical.tsv')
 
-def convert_parquet(pr: PullRequest, raw_data_storage, git_dao):
+def convert_parquet(pr: PullRequest, raw_data_storage):
+    printToLog("Building parquet file(s)...", pr)
+
     cwd = os.getcwd()
     os.chdir(raw_data_storage)
 
@@ -135,9 +167,9 @@ def convert_parquet(pr: PullRequest, raw_data_storage, git_dao):
     data_files = os.listdir('./')
 
     groups = {}
-    for file in data_files:
-        group_name = file.rstrip('.gz').rstrip('.tsv')
-        with gzip.open(file) as fp:
+    for f in data_files:
+        group_name = f.rstrip('.gz').rstrip('.tsv')
+        with gzip.open(f) as fp:
             with gzip.open('tmp.tsv.gz', 'w') as fp_out:
                 columns = fp.readline().decode().rstrip('\n').split('\t')
                 groups[group_name] = [columns[0]]
@@ -149,8 +181,8 @@ def convert_parquet(pr: PullRequest, raw_data_storage, git_dao):
                 for line in fp:
                     fp_out.write(line)
                 groups[group_name].remove(columns[0])
-        os.remove(file)
-        shutil.move('tmp.tsv.gz', file)
+        os.remove(f)
+        shutil.move('tmp.tsv.gz', f)
 
     num_features = 0
     for group in groups:
@@ -165,7 +197,6 @@ def convert_parquet(pr: PullRequest, raw_data_storage, git_dao):
     ss.merge_files(data_files[1:], data_path, 'parquet')
     get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
     get_description(pr, os.path.join(geney_dataset_path, 'description.json'))
-    git_dao.merge(pr)
     os.chdir(cwd)
 
 def get_metadata(data_file, out_file):
@@ -212,83 +243,73 @@ def cleanup(pr):
     shutil.rmtree("{}".format(os.path.join(TESTING_LOCATION, pr.branch)), ignore_errors=True)
 
 def send_report(pr):
-    #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, recipient='hillkimball@gmail.com')
-    pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, recipient='stephen.piccolo.byu@gmail.com')
+    #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='hillkimball@gmail.com')
+    pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='stephen.piccolo.byu@gmail.com')
+
     try:
         pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS)
     except Exception as e:
-        print(get_exception_stack(e))
-    print("Done!")
+        printToLog(get_exception_stack(e), pr)
 
-def simulate_test(pr: PullRequest):
-    print("Starting job: {}".format(pr.branch), flush=True)
-    time.sleep(20)
-    print("testing {}...".format(pr.branch), flush=True)
-    time.sleep(20)
-    print("finished {}".format(pr.branch), flush=True)
+    printToLog("Sent email report", pr)
 
 def setup():
     os.chdir(WB_DIRECTORY)
     required_directories = [RAW_DATA_STORAGE, GENEY_DATA_LOCATION, TESTING_LOCATION]
+
     for path in required_directories:
         if not os.path.exists(path):
             os.makedirs(path)
 
 if __name__ == '__main__':
-    # print(os.getcwd())
+    with CaptureOutput() as capturer:
+        GH_TOKEN = os.environ['GH_TOKEN']
+        WISHBUILDER_EMAIL = os.environ['WISHBUILDER_EMAIL']
+        WISHBUILDER_PASS = os.environ['WISHBUILDER_PASS']
+        SLEEP_SECONDS = int(os.environ['SLEEP_SECONDS'])
 
-    GH_TOKEN = os.environ['GH_TOKEN']
-    WISHBUILDER_EMAIL = os.environ['WISHBUILDER_EMAIL']
-    WISHBUILDER_PASS = os.environ['WISHBUILDER_PASS']
-    SLEEP_SECONDS = int(os.environ['SLEEP_SECONDS'])
+        setup()
+        sql_dao = SqliteDao(SQLITE_FILE)
+        git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
 
-    setup()
-    sql_dao = SqliteDao(SQLITE_FILE)
-    git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
+        if os.path.exists(PRS_TO_DELETE_FILE):
+            with open(PRS_TO_DELETE_FILE) as prFile:
+                for line in prFile:
+                    if line.startswith("#"):
+                        continue
 
-    if os.path.exists(PRS_TO_DELETE_FILE):
-        with open(PRS_TO_DELETE_FILE) as prFile:
-            for line in prFile:
-                if line.startswith("#"):
-                    continue
+                    pr = line.rstrip()
+                    printToLog("Removing pull request #{} from database.".format(pr))
+                    sql_dao.remove_pr(pr)
 
-                pr = line.rstrip()
-                print("Removing pull request #{} from database.".format(pr))
-                sql_dao.remove_pr(pr)
+        processes = []
+        queue = []
+        history = []
+        while True:
+            printToLog("Check for prs")
+            new_prs = get_new_prs(sql_dao, git_dao)
+            for pull in new_prs:
+                if pull.sha not in history:
+                    queue.append(pull)
 
-    processes = []
-    queue = []
-    history = []
-    while True:
-        print("Check for prs", flush=True)
-        new_prs = get_new_prs(sql_dao, git_dao)
-        for pull in new_prs:
-            if pull.sha not in history:
-                queue.append(pull)
+            while len(queue) > 0:
+                for p in processes:
+                    if not p.is_alive():
+                        processes.remove(p)
+                    else:
+                        if psutil.Process(p.pid).memory_info().rss > 3e+10:
+                            printToLog('Memory limit reached!')
+                            p.terminate()
+                            break
 
-        while len(queue) > 0:
-            for p in processes:
-                if not p.is_alive():
-                    processes.remove(p)
-                else:
-                    if psutil.Process(p.pid).memory_info().rss > 3e+10:
-                        print('Memory limit reached!', flush=True)
-                        p.terminate()
-                        break
-            if len(processes) < MAX_NUM_PROCESSES:
-                new_pr = queue.pop()
-                history.append(new_pr.sha)
-                p = Process(target=test, args=(new_pr, sql_dao))
-                processes.append(p)
-                p.start()
-            time.sleep(5)
+                if len(processes) < MAX_NUM_PROCESSES:
+                    new_pr = queue.pop()
+                    history.append(new_pr.sha)
+                    p = Process(target=test, args=(new_pr, sql_dao))
+                    processes.append(p)
 
-        time.sleep(SLEEP_SECONDS)
+                    p.start()
 
-    # new_prs = get_new_prs()
-    # for pr in new_prs:
-    #     if 'BiomarkerBenchmark_GSE37745' in pr.branch or 'BiomarkerBenchmark_GSE4271' in pr.branch:
-    #         test(pr)
-    #         test_pr = pr
-    # print(test_pr.branch)
-    # test(test_pr)
+                time.sleep(5)
+
+            time.sleep(SLEEP_SECONDS)

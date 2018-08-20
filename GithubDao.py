@@ -3,6 +3,7 @@ import requests
 import sys
 from PullRequest import PullRequest
 from Constants import REPO_URL, TESTING_LOCATION
+from Shared import *
 
 class GithubDao:
     def __init__(self, repo_url: str, token: str):
@@ -95,12 +96,12 @@ class GithubDao:
         url = '{repo}pulls/{num}/merge?access_token={token}'.format(repo=self.repo_url, num=pr.pr, token=self.token)
         response = requests.put(url, json=request)
         if 'Pull Request successfully merged' in response.json()['message']:
-            print('Pull Request #{num}, Branch \"{branch}\", has been merged to WishBuilder Master branch'.format(num=pr.pr, branch=pr.branch), flush=True)
+            printToLog('Pull Request #{num}, Branch \"{branch}\", has been merged to WishBuilder Master branch'.format(num=pr.pr, branch=pr.branch), pr)
             return True
         else:
-            print('Pull Request #{num}, Branch \"{branch}\", could not be merged to WishBuilder Master branch'.format(num=pr.pr, branch=pr.branch), flush=True)
-            print(response)
-            print(response.json()['message'])
+            printToLog('Pull Request #{num}, Branch \"{branch}\", could not be merged to WishBuilder Master branch'.format(num=pr.pr, branch=pr.branch), pr)
+            printToLog(response, pr)
+            printToLog(response.json()['message'], pr)
             return False
 
     def get_email(self, sha: str) -> str:

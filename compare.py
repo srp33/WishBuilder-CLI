@@ -2,10 +2,11 @@ import gzip, os, sys
 from Constants import *
 import pandas as pd
 from PullRequest import PullRequest
+from Shared import *
 
 def one_feature(filePath):
     print("Reading data for the one_feature function from {}".format(filePath))
-    df = pd.read_csv(filePath, sep='\t')
+    df = pd.read_csv(filePath, sep='\t', low_memory=False)
 
     if len(df.columns.values) > 2:
         return True
@@ -115,16 +116,26 @@ def compare_files(data_file_list, test_file_list):
     passed_all = True
     report = "### Comparing Files:\n\n"
     all_samples = {}
-    for file in data_file_list:
+
+    for data_file_path in data_file_list:
         passed = True
-        column_headers = []  # List of column headers AKA feature names
-        data_row_count = 0  # Row count in data file
-        test_samples = []  # sample IDs in test file
-        data_samples = set()  # Set of sample IDs in data file
-        test_row_count = 0  # Row count in test file
-        test_file_name = ""
+
+        test_file_path = 'test_' + data_file_path.rstrip('.gz')
         test_dict = {}
-        tested_rows = []
+
+        with open(test_file_path, 'r') as test_file:
+            column_headers = test_file.readline().decode().rstrip('\n').split('\t')
+
+            for line in test_file:
+                test_data = line.decode().rstrip('\n').split('\t')
+                sample = test_data[0]
+                variable = test_data[1]
+                value = test_data[2]
+
+                if sample not in test_dict:
+                    test_dict[sample] = {}
+
+                test_dict[sample][variable] = value
 
         with gzip.open(file, 'r') as data_file:
             # ----------------------------------------------------------------------------------------------------------
@@ -132,18 +143,7 @@ def compare_files(data_file_list, test_file_list):
                 if file.rstrip('.gz') == test.lstrip('test_'):
                     test_file_name = test
 
-            # PARSING THROUGH TEST FILE
-            with open(test_file_name, 'r') as test_file:
-                test_file.readline().rstrip('\n').split('\t')
-                for line in test_file:
-                    test_row_count += 1
-                    test_data = line.rstrip('\n').split('\t')
-                    test_data.append(test_row_count)  # Add row number to the list
-                    test_samples.append(test_data[0])  # Add sample IDs in test file to the list
-                    if test_data[0] in test_dict.keys():  # Create a map {sample: list of variable+value+row}
-                        test_dict[test_data[0]].extend([test_data])
-                    else:
-                        test_dict.setdefault(test_data[0], []).extend([test_data])
+
             # ----------------------------------------------------------------------------------------------------------
 
             report += "#### Comparing \"{0}\" and \"{1}\"\n\n".format(file, test_file_name)
@@ -170,18 +170,21 @@ def compare_files(data_file_list, test_file_list):
             for line in data_file:
                 data_row_count += 1
                 data = line.decode().rstrip('\n').split('\t')
-                data_samples.add(data[0])  # Add sample IDs in data file to the set
-                if data[0] in test_dict.keys():
-                    for info in test_dict[data[0]]:
+                sample = data[0]
+                data_samples.add(sample)  # Add sample IDs in data file to the set
+
+                if sample in test_dict.keys():
+                    for info in test_dict[sample]:
                         row = info[3]  # row number from test file
                         tested_rows.append(row)  # Keep track of rows checked
+
                         if info[1] in data_headers:  # Check if variable in test file is in data file
                             variable_index = data_headers.index(info[1])
                             if info[2] == data[variable_index]:  # Check if variable's value in test file matches value in data file
                                 report += "{check_mark}\tRow {0}: Success\n\n".format(row, check_mark=CHECK_MARK)
                             else:
                                 passed = False
-                                report += "{red_x}\tRow {0}: Fail - Values do not match\n\n".format(row, red_x=RED_X)
+                                report += "{red_x}\tRow {0}: Fail - Value in test file ({1}) does not match value in data file ({2}) for {3} and {4}.\n\n".format(row, info[2], data[variable_index], info[0], info[1], red_x=RED_X)
                         else:  # Make sure
                             report += "{red_x}\tRow {0} - Variable \"{1}\" is not found in \"{2}\" column headers\n\n"\
                                 .format(row, info[1], file, red_x=RED_X)
@@ -197,6 +200,7 @@ def compare_files(data_file_list, test_file_list):
             if not passed:
                 passed_all = False
         all_samples[file] = data_samples
+
     report += "### Comparing Samples\n\n"
     samples = False
     pass_sample_comparison = True
@@ -210,6 +214,7 @@ def compare_files(data_file_list, test_file_list):
                 report += "{}\tSamples in data files are not equal\n\n".format(RED_X)
                 pass_sample_comparison = False
                 passed_all = False
+
     if pass_sample_comparison:
         report += "{}\tSamples are the same in all data files\n\n".format(CHECK_MARK)
 
@@ -217,6 +222,7 @@ def compare_files(data_file_list, test_file_list):
         report += "#### Results: PASS\n---\n"
     else:
         report += "#### Results: FAIL\n---\n"
+
     return report, passed_all, num_samples
 
 # Check if there is a test file for every data file
@@ -305,21 +311,20 @@ def check_test_for_every_data(pr: PullRequest, file_list):
 #    return table
 
 def create_html_table(columns, rows, file_path):
-    table = '\n### First ' + \
-            str(columns) + ' columns and ' + str(rows) + \
-            ' rows of ' + file_path + ':\n\n'
+    table = '\n### First ' + str(columns) + ' columns and ' + str(rows) + ' rows of ' + file_path + ':\n\n'
     table += '<table style="width:100%; border: 1px solid black;">\n'
     with gzip.open(file_path, 'r') as inFile:
         for i in range(rows):
-            table += '\t<tr>\n'
+            table += "\t<tr align='left'>\n"
             line = inFile.readline().decode().rstrip('\n').split('\t')
             if len(line) < columns:
                 columns = len(line)
             for j in range(columns):
                 if i == 0:
-                    table += '\t\t<th>{}</th>\n'.format(line[j])
+                    table += "\t\t<th align='left'>{}</th>\n".format(line[j])
                 else:
-                    table += '\t\t<td>{}</td>\n'.format(line[j])
+                    table += "\t\t<td align='left'>{}</td>\n".format(line[j])
+
             table += '\n'
             table += '\t</tr>\n'
     table += '</table>\n'

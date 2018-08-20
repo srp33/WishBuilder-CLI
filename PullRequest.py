@@ -3,7 +3,11 @@ from Report import Report
 from datetime import datetime, timedelta
 import markdown
 import smtplib
-from email.message import EmailMessage
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email.utils import formatdate
+from email import encoders
 
 class PullRequest:
     def __init__(self, pr: int, branch: str, date: str, e_date: float, feature_variables: int, meta_variables: int,
@@ -24,6 +28,7 @@ class PullRequest:
         self.email = email
         self.status = status
         self.report = Report(report)
+        self.log_file_path = None
 
     def __str__(self) -> str:
         out = "Pull Request Number: #{}\nBranch: {}\nDate: {}\neDate: {}\nNumber of Feature Variables: {}\n" \
@@ -50,25 +55,59 @@ class PullRequest:
         html = markdown.markdown(md)
         return html
 
-    def send_report(self, loginEmail, loginPassword, recipient='user'):
-        if recipient == 'user':
-            recipient = self.email
-        s = smtplib.SMTP(host='mail.kimball-hill.com', port=587)
-        s.starttls()
-        s.login(loginEmail, loginPassword)
+#    def send_report(self, loginEmail, loginPassword, recipient='user'):
+#        if recipient == 'user':
+#            recipient = self.email
+#
+#        s = smtplib.SMTP(host='mail.kimball-hill.com', port=587)
+#        s.starttls()
+#        s.login(loginEmail, loginPassword)
+#
+#        if self.passed:
+#            subject = "Passed: {}".format(self.branch)
+#        else:
+#            subject = "Failed: {}".format(self.branch)
+#
+#        message = EmailMessage()
+#        message['From'] = 'wishbuilder@kimball-hill.com'
+#        message['To'] = recipient
+#        message['Subject'] = subject
+#        message.set_content(self.get_report_html(), subtype='html')
+#
+#        s.send_message(message)
+
+    # From https://stackoverflow.com/questions/3362600/how-to-send-email-attachments
+    def send_report(self, username, password, send_to='user'):
+        if send_to == 'user':
+            send_to = self.email
 
         if self.passed:
             subject = "Passed: {}".format(self.branch)
         else:
             subject = "Failed: {}".format(self.branch)
 
-        message = EmailMessage()
-        message['From'] = 'wishbuilder@kimball-hill.com'
-        message['To'] = recipient
-        message['Subject'] = subject
-        message.set_content(self.get_report_html(), subtype='html')
+        send_from = 'wishbuilder@kimball-hill.com'
 
-        s.send_message(message)
+        msg = MIMEMultipart()
+        msg['From'] = send_from
+        msg['To'] = send_to
+        msg['Date'] = formatdate(localtime=True)
+        msg['Subject'] = subject
+
+        msg.attach(MIMEText(self.get_report_html(), 'html'))
+
+        part = MIMEBase('application', "octet-stream")
+        with open(self.log_file_path, 'rb') as file:
+            part.set_payload(file.read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment; filename="{}"'.format(os.path.basename(self.log_file_path)))
+        msg.attach(part)
+
+        smtp = smtplib.SMTP("mail.kimball-hill.com", 587)
+        smtp.starttls()
+        smtp.login(username, password)
+        smtp.sendmail(send_from, send_to, msg.as_string())
+        smtp.quit()
 
     def check_if_passed(self) -> bool:
         passed = True

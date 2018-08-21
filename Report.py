@@ -5,8 +5,8 @@ class Report:
     def __init__(self, report_json: str=None):
         if not report_json:
             # Valid File Test
-            self.valid_files = False
-            self.valid_files_report = ''
+#            self.valid_files = False
+#            self.valid_files_report = ''
 
             # Directory Test
             self.pass_directory_test = False
@@ -19,6 +19,9 @@ class Report:
             # File Path Test
             self.pass_file_test = False
             self.file_test_report = ''
+
+            self.pass_gzip_test = False
+            self.gzip_test_report = ''
 
             # Run User Scripts
             self.pass_script_test = False
@@ -45,8 +48,8 @@ class Report:
             # self.sample_comparison_report = ''
 
             # Cleanup Test
-            self.pass_cleanup = False
-            self.cleanup_report = ''
+            #self.pass_cleanup = False
+            #self.cleanup_report = ''
 
             # Other (updates and strings of previous status report, if this is true, only the other_content will be
             # used when cast to a string
@@ -56,8 +59,8 @@ class Report:
             report_dict = json.loads(report_json)
 
             # Valid File Test
-            self.valid_files = report_dict['valid_files']
-            self.valid_files_report = report_dict['valid_files_report']
+#            self.valid_files = report_dict['valid_files']
+#            self.valid_files_report = report_dict['valid_files_report']
 
             # Directory Test
             self.pass_directory_test = report_dict['pass_directory_test']
@@ -70,6 +73,9 @@ class Report:
             # File Path Test
             self.pass_file_test = report_dict['pass_file_test']
             self.file_test_report = report_dict['file_test_report']
+
+            self.pass_gzip_test = report_dict['pass_gzip_test']
+            self.gzip_test_report = report_dict['gzip_test_report']
 
             # Run User Scripts
             self.pass_script_test = report_dict['pass_script_test']
@@ -96,8 +102,8 @@ class Report:
             # self.sample_comparison_report = report_dict['sample_comparison_report']
 
             # Cleanup Test
-            self.pass_cleanup = report_dict['pass_cleanup']
-            self.cleanup_report = report_dict['cleanup_report']
+            #self.pass_cleanup = report_dict['pass_cleanup']
+            #self.cleanup_report = report_dict['cleanup_report']
 
             # Other
             if 'other' in report_dict.keys():
@@ -111,10 +117,11 @@ class Report:
         if self.other:
             return self.other_content
         else:
-            out = self.valid_files_report
-            out += self.directory_test_report
+#            out = self.valid_files_report
+            out = self.directory_test_report
             out += self.configuration_test_report
             out += self.file_test_report
+            out += self.gzip_test_report
             out += self.script_test_report
             out += self.key_test_report
             out += self.meta_data_preview
@@ -122,7 +129,7 @@ class Report:
             out += self.data_preview
             out += self.data_tests_report
             # out += self.sample_comparison_report
-            out += self.cleanup_report
+            #out += self.cleanup_report
             return out
 
     def to_json(self):

@@ -10,11 +10,12 @@ from email.utils import formatdate
 from email import encoders
 
 class PullRequest:
-    def __init__(self, pr: int, branch: str, date: str, e_date: float, feature_variables: int, meta_variables: int,
+    def __init__(self, pr: int, branch: str, repo_owner: str, date: str, e_date: float, feature_variables: int, meta_variables: int,
                  passed: bool, pr_id: int, num_samples: int, sha: str, time_elapsed: str, user: str, email: str,
                  status: str, report: str = None):
         self.pr = pr
         self.branch = branch
+        self.repo_owner = repo_owner
         self.date = date
         self.e_date = e_date
         self.feature_variables = feature_variables
@@ -31,10 +32,10 @@ class PullRequest:
         self.log_file_path = None
 
     def __str__(self) -> str:
-        out = "Pull Request Number: #{}\nBranch: {}\nDate: {}\neDate: {}\nNumber of Feature Variables: {}\n" \
+        out = "Pull Request Number: #{}\nBranch: {}\nRepo Owner: {}\nDate: {}\neDate: {}\nNumber of Feature Variables: {}\n" \
               "Number of Metadata Variables: {}\nPassed: {}\nPull Request ID: {}\nNumber of Samples: {}\nSha: " \
               "{}\nTime Elapsed: {}\nUser: {}\nEmail: {}\nStatus: {}" \
-            .format(self.pr, self.branch, self.date, self.e_date, self.feature_variables, self.meta_variables,
+            .format(self.pr, self.branch, self.repo_owner, self.date, self.e_date, self.feature_variables, self.meta_variables,
                     self.passed, self.pr_id, self.num_samples, self.sha, self.time_elapsed, self.user, self.email,
                     self.status)
         return out
@@ -54,27 +55,6 @@ class PullRequest:
         md = self.get_report_markdown()
         html = markdown.markdown(md)
         return html
-
-#    def send_report(self, loginEmail, loginPassword, recipient='user'):
-#        if recipient == 'user':
-#            recipient = self.email
-#
-#        s = smtplib.SMTP(host='mail.kimball-hill.com', port=587)
-#        s.starttls()
-#        s.login(loginEmail, loginPassword)
-#
-#        if self.passed:
-#            subject = "Passed: {}".format(self.branch)
-#        else:
-#            subject = "Failed: {}".format(self.branch)
-#
-#        message = EmailMessage()
-#        message['From'] = 'wishbuilder@kimball-hill.com'
-#        message['To'] = recipient
-#        message['Subject'] = subject
-#        message.set_content(self.get_report_html(), subtype='html')
-#
-#        s.send_message(message)
 
     # From https://stackoverflow.com/questions/3362600/how-to-send-email-attachments
     def send_report(self, username, password, send_to='user'):
@@ -96,12 +76,13 @@ class PullRequest:
 
         msg.attach(MIMEText(self.get_report_html(), 'html'))
 
-        part = MIMEBase('application', "octet-stream")
-        with open(self.log_file_path, 'rb') as file:
-            part.set_payload(file.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', 'attachment; filename="{}"'.format(os.path.basename(self.log_file_path)))
-        msg.attach(part)
+        if os.path.exists(self.log_file_path):
+            part = MIMEBase('application', "octet-stream")
+            with open(self.log_file_path, 'rb') as file:
+                part.set_payload(file.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', 'attachment; filename="{}"'.format(os.path.basename(self.log_file_path)))
+            msg.attach(part)
 
         smtp = smtplib.SMTP("mail.kimball-hill.com", 587)
         smtp.starttls()
@@ -111,13 +92,15 @@ class PullRequest:
 
     def check_if_passed(self) -> bool:
         passed = True
-        if not self.report.valid_files:
-            passed = False
+#        if not self.report.valid_files:
+#            passed = False
         if not self.report.pass_directory_test:
             passed = False
         if not self.report.pass_configuration_test:
             passed = False
         if not self.report.pass_file_test:
+            passed = False
+        if not self.report.pass_gzip_test:
             passed = False
         if not self.report.pass_script_test:
             passed = False
@@ -129,8 +112,8 @@ class PullRequest:
         #     passed = False
         # if not self.report.pass_sample_comparison:
         #     passed = False
-        if not self.report.pass_cleanup:
-            passed = False
+        #if not self.report.pass_cleanup:
+        #    passed = False
         self.passed = passed
         if passed:
             self.status = 'Complete'

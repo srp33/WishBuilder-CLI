@@ -10,19 +10,6 @@ from Constants import *
 from Shared import *
 from capturer import CaptureOutput
 
-#class StreamToLogger(object):
-#    def __init__(self, logger, log_level=logging.INFO):
-#        self.logger = logger
-#        self.log_level = log_level
-#        self.linebuf = ''
-#
-#    def write(self, buf):
-#        for line in buf.rstrip().splitlines():
-#            self.logger.log(self.log_level, line.rstrip())
-#
-#    def flush(self):
-#        pass
-
 def get_new_prs(sql_dao, git_dao):
     full_history = sql_dao.get_all()
     prs = git_dao.get_prs()
@@ -60,21 +47,10 @@ def get_exception_stack(e):
 
 def test(pr: PullRequest, sql_dao):
     cwd = os.getcwd()
+
     try:
         shutil.rmtree(os.path.join(TESTING_LOCATION, pr.branch), ignore_errors=True)
         os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
-
-#        logging.basicConfig(
-#            level=logging.DEBUG,
-#            #format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-#            format='%(asctime)s - %(message)s',
-#            filename=log_file_path,
-#            filemode='a')
-#
-#        thread_logger = logging.getLogger(new_pr.branch)
-#        sys.stdout = StreamToLogger(thread_logger, logging.INFO)
-#        sys.stderr = StreamToLogger(thread_logger, logging.ERROR)
-#        thread_logger.info("Starting logger for " + new_pr.branch + "...")
 
         printToLog("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), pr)
 
@@ -87,48 +63,31 @@ def test(pr: PullRequest, sql_dao):
         start = time.time()
         raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
 
-        files, download_urls, removed_files = git_dao.get_files_changed(pr)
-        valid, description_only = check_files_changed(pr, files)
+        test_dir = os.path.join(TESTING_LOCATION, pr.branch)
+        if not os.path.exists(test_dir):
+            os.makedirs(test_dir)
 
-        valid = True
-        if valid:
-            pr.report.valid_files = True
-            if description_only:
-                convert_parquet(pr, raw_data_storage)
-                git_dao.merge(pr)
-                pr.set_updated()
-            else:
-                # Download Files from Github and put them in the testing directory
-                download_urls.extend(git_dao.get_existing_files(pr.branch, files, removed_files))
-                download_urls.extend(git_dao.get_existing_files('Helper', files, []))
+        git_dao.get_branch(pr, test_dir)
 
-                for f in download_urls:
-                    git_dao.download_file(f, TESTING_LOCATION)
+        os.chdir(test_dir)
 
-                os.chdir(os.path.join(TESTING_LOCATION, pr.branch))
+        # Run tests
+        test_folder(pr)
+        test_config(pr)
+        test_files(pr)
+        test_gzip(pr)
 
-                # Run tests
-                test_folder(pr)
-                test_config(pr)
-                test_files(pr)
+        # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
+        if test_scripts(pr):
+            passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
 
-                original_directory = os.listdir(os.getcwd())
+            if passed:
+                shutil.rmtree(raw_data_storage, ignore_errors=True)
+                os.mkdir(raw_data_storage)
 
-                # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
-                if test_scripts(pr):
-                    fix_files()
-
-                    passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
-
-                    if passed:
-                        shutil.rmtree(raw_data_storage, ignore_errors=True)
-                        os.mkdir(raw_data_storage)
-
-                        for f in os.listdir(os.getcwd()):
-                            if f.endswith('.gz'):
-                                os.system('mv {} {}'.format(f, raw_data_storage))
-
-                    test_cleanup(original_directory, pr)
+                for f in os.listdir(os.getcwd()):
+                    if f.endswith('.gz'):
+                        os.system('mv {} {}'.format(f, raw_data_storage))
 
         pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
         pr.date = time.strftime("%D", time.gmtime(time.time()))
@@ -145,15 +104,17 @@ def test(pr: PullRequest, sql_dao):
         pr.report.other = True
         #pr.report.other_content = '\n### WishBuilder Error, we are working on it and will rerun your request when we fix the issue. (Error message: {})\n\n'.format(e)
         pr.report.other_content = get_exception_stack(e)
+    finally:
+        os.chdir(cwd)
+        cleanup(pr)
 
-    os.chdir(cwd)
     send_report(pr)
-    cleanup(pr)
 
-def fix_files():
-    files = os.listdir('./')
-    if 'test_metadata.tsv' in files:
-        shutil.move('test_metadata.tsv', 'test_Clinical.tsv')
+
+#def fix_files():
+#    files = os.listdir('./')
+#    if 'test_metadata.tsv' in files:
+#        shutil.move('test_metadata.tsv', 'test_Clinical.tsv')
 
 def convert_parquet(pr: PullRequest, raw_data_storage):
     printToLog("Building parquet file(s)...", pr)

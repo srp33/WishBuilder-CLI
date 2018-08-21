@@ -1,7 +1,8 @@
 import os
 
 MAX_NUM_PROCESSES = int(os.environ["MAX_NUM_PROCESSES"])
-REPO_URL = 'https://api.github.com/repos/srp33/WishBuilder/'
+REPO_OWNER = 'srp33'
+REPO_URL = 'https://api.github.com/repos/{}/WishBuilder/'.format(REPO_OWNER)
 WB_DIRECTORY = "/Shared"
 SQLITE_FILE = os.path.join(WB_DIRECTORY, 'history.sql')
 PRS_TO_DELETE_FILE = os.path.join(WB_DIRECTORY, 'prs_to_delete.txt')

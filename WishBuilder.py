@@ -10,6 +10,14 @@ from Constants import *
 from Shared import *
 from capturer import CaptureOutput
 
+def setup():
+    os.chdir(WB_DIRECTORY)
+    required_directories = [RAW_DATA_STORAGE, GENEY_DATA_LOCATION, TESTING_LOCATION]
+
+    for path in required_directories:
+        if not os.path.exists(path):
+            os.makedirs(path)
+
 def get_new_prs(sql_dao, git_dao):
     full_history = sql_dao.get_all()
     prs = git_dao.get_prs()
@@ -49,21 +57,21 @@ def test(pr: PullRequest, sql_dao):
     cwd = os.getcwd()
 
     try:
-        shutil.rmtree(os.path.join(TESTING_LOCATION, pr.branch), ignore_errors=True)
-        os.mkdir(os.path.join(TESTING_LOCATION, pr.branch))
+        test_dir = os.path.join(TESTING_LOCATION, pr.branch)
+
+        shutil.rmtree(test_dir, ignore_errors=True)
+        os.mkdir(test_dir)
 
         printToLog("Testing {}, Pull Request #{}...".format(pr.branch, pr.pr), pr)
 
         pr.status = 'In progress'
         pr.email = git_dao.get_email(pr.sha)
-        pr.log_file_path = os.path.join(os.path.join(TESTING_LOCATION, pr.branch), LOG_FILE_NAME)
+        pr.log_file_path = os.path.join(test_dir, LOG_FILE_NAME)
         sql_dao.update(pr)
 
-        cleanup(pr)
         start = time.time()
         raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
 
-        test_dir = os.path.join(TESTING_LOCATION, pr.branch)
         if not os.path.exists(test_dir):
             os.makedirs(test_dir)
 
@@ -87,9 +95,11 @@ def test(pr: PullRequest, sql_dao):
         # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
         if test_scripts(pr):
             gz_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".gz")]
-            passed = test_gzip(pr, gz_file_paths) and check_test_for_every_data(pr, gz_file_paths, test_file_paths)
 
-            if passed:
+            gzip_passed = test_gzip(pr, gz_file_paths)
+            data_passed = check_test_for_every_data(pr, gz_file_paths, test_file_paths)
+
+            if gzip_passed and data_passed:
                 shutil.rmtree(raw_data_storage, ignore_errors=True)
                 os.mkdir(raw_data_storage)
 
@@ -103,20 +113,24 @@ def test(pr: PullRequest, sql_dao):
         sql_dao.update(pr)
 
         if pr.passed:
-            convert_parquet(pr, raw_data_storage)
+            convert_to_parquet(pr, test_dir, raw_data_storage)
             git_dao.merge(pr)
     except Exception as e:
         pr.status = 'Error'
         pr.passed = False
         pr.report.other = True
-        pr.report.other_content = get_exception_stack(e)
+        exception_stack = get_exception_stack(e)
+        pr.report.other_content = exception_stack
+        print("Exception for pull request #{}".format(pr.branch))
+        print(exception_stack)
 
     send_report(pr)
     os.chdir(cwd)
-    cleanup(pr)
+    shutil.rmtree(test_dir, ignore_errors=True)
+    print("Done")
 
-def convert_parquet(pr: PullRequest, raw_data_storage):
-    printToLog("Building parquet file(s)...", pr)
+def convert_to_parquet(pr: PullRequest, test_dir, raw_data_storage):
+    printToLog("Building parquet file(s)", pr)
 
     cwd = os.getcwd()
     os.chdir(raw_data_storage)
@@ -156,7 +170,7 @@ def convert_parquet(pr: PullRequest, raw_data_storage):
     ss = ShapeShifter.ShapeShifter(data_files[0])
     ss.merge_files(data_files[1:], data_path, 'parquet')
     get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
-    get_description(pr, os.path.join(geney_dataset_path, 'description.json'))
+    get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
     os.chdir(cwd)
 
 def get_metadata(data_file, out_file):
@@ -184,10 +198,10 @@ def get_metadata(data_file, out_file):
     with open(out_file, 'wb') as fp:
         pickle.dump(metadata, fp)
 
-def get_description(pr: PullRequest, out_file):
-    with open(os.path.join(TESTING_LOCATION, pr.branch, 'config.yaml')) as config_fp:
+def get_description(pr: PullRequest, test_dir, out_file):
+    with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
         description = yaml.load(config_fp)
-    with open(os.path.join(TESTING_LOCATION, pr.branch, 'description.md')) as description_fp:
+    with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
         md = description_fp.read()
 
     description['description'] = md
@@ -199,9 +213,6 @@ def get_description(pr: PullRequest, out_file):
     with open(out_file, 'w') as out_fp:
         json.dump(description, out_fp)
 
-def cleanup(pr):
-    shutil.rmtree("{}".format(os.path.join(TESTING_LOCATION, pr.branch)), ignore_errors=True)
-
 def send_report(pr):
     #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='hillkimball@gmail.com')
     pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='stephen.piccolo.byu@gmail.com')
@@ -212,14 +223,6 @@ def send_report(pr):
         printToLog(get_exception_stack(e), pr)
 
     printToLog("Sent email report", pr)
-
-def setup():
-    os.chdir(WB_DIRECTORY)
-    required_directories = [RAW_DATA_STORAGE, GENEY_DATA_LOCATION, TESTING_LOCATION]
-
-    for path in required_directories:
-        if not os.path.exists(path):
-            os.makedirs(path)
 
 if __name__ == '__main__':
     with CaptureOutput() as capturer:

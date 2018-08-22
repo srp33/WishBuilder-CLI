@@ -92,8 +92,8 @@ class PullRequest:
 
     def check_if_passed(self) -> bool:
         passed = True
-#        if not self.report.valid_files:
-#            passed = False
+        if not self.report.valid_files:
+            passed = False
         if not self.report.pass_directory_test:
             passed = False
         if not self.report.pass_configuration_test:
@@ -108,21 +108,12 @@ class PullRequest:
             passed = False
         if not self.report.pass_data_tests:
             passed = False
-        # if not self.report.pass_meta_tests:
-        #     passed = False
-        # if not self.report.pass_sample_comparison:
-        #     passed = False
-        #if not self.report.pass_cleanup:
-        #    passed = False
+
         self.passed = passed
+
         if passed:
             self.status = 'Complete'
             return True
         else:
             self.status = 'Failed'
             return False
-
-if __name__=='__main__':
-    pr = PullRequest(1, 'branch', '1/1/11', 1245.515, 1, 1, False, 1, 1, 'sha', '124', 'user', 'email', 'status')
-    print(pr.get_report_markdown())
-    # print(pr.report.to_json())

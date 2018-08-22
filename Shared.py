@@ -2,7 +2,12 @@ import datetime, os, subprocess, sys
 from Constants import *
 
 def printToLog(message, pr=None):
-    modMessage = "{:%Y-%m-%d %H:%M:%S} | {}\n".format(datetime.datetime.now(), message)
+    modMessage = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
+
+    if pr != None and pr.branch != None:
+        modMessage += " | {}".format(pr.branch)
+
+    modMessage += " | {}\n".format(message)
 
     print(modMessage.rstrip("\n"), flush=True)
 

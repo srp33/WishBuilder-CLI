@@ -39,18 +39,6 @@ class Report:
             self.pass_data_tests = False
             self.data_tests_report = ''
 
-            # Metadata Test Cases
-            # self.pass_meta_tests = False
-            # self.meta_tests_report = ''
-
-            # Sample Comparison Test
-            # self.pass_sample_comparison = False
-            # self.sample_comparison_report = ''
-
-            # Cleanup Test
-            #self.pass_cleanup = False
-            #self.cleanup_report = ''
-
             # Other (updates and strings of previous status report, if this is true, only the other_content will be
             # used when cast to a string
             self.other = False
@@ -93,18 +81,6 @@ class Report:
             self.pass_data_tests = report_dict['pass_data_tests']
             self.data_tests_report = report_dict['data_tests_report']
 
-            # Metadata Test Cases
-            # self.pass_meta_tests = report_dict['pass_meta_tests']
-            # self.meta_tests_report = report_dict['meta_tests_report']
-
-            # Sample Comparison Test
-            # self.pass_sample_comparison = report_dict['pass_sample_comparison']
-            # self.sample_comparison_report = report_dict['sample_comparison_report']
-
-            # Cleanup Test
-            #self.pass_cleanup = report_dict['pass_cleanup']
-            #self.cleanup_report = report_dict['cleanup_report']
-
             # Other
             if 'other' in report_dict.keys():
                 self.other = report_dict['other']
@@ -125,11 +101,9 @@ class Report:
             out += self.gzip_test_report
             out += self.key_test_report
             out += self.meta_data_preview
-            # out += self.meta_tests_report
             out += self.data_preview
             out += self.data_tests_report
-            # out += self.sample_comparison_report
-            #out += self.cleanup_report
+
             return out
 
     def to_json(self):

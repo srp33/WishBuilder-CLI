@@ -196,9 +196,3 @@ class SqliteDao:
         c = self.__con.cursor()
         c.execute('delete from PullRequests where PR={}'.format(pr_number))
         self.close()
-
-
-#if __name__ == '__main__':
-#    dao = SqliteDao(SQLITE_FILE)
-#    dao.remove_pr(353)
-#    # pull.send_report(recipient='hillkimball@gmail.com')

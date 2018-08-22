@@ -109,18 +109,11 @@ def test(pr: PullRequest, sql_dao):
         pr.status = 'Error'
         pr.passed = False
         pr.report.other = True
-        #pr.report.other_content = '\n### WishBuilder Error, we are working on it and will rerun your request when we fix the issue. (Error message: {})\n\n'.format(e)
         pr.report.other_content = get_exception_stack(e)
 
     send_report(pr)
     os.chdir(cwd)
     cleanup(pr)
-
-
-#def fix_files():
-#    files = os.listdir('./')
-#    if 'test_metadata.tsv' in files:
-#        shutil.move('test_metadata.tsv', 'test_Clinical.tsv')
 
 def convert_parquet(pr: PullRequest, raw_data_storage):
     printToLog("Building parquet file(s)...", pr)

@@ -60,34 +60,6 @@ class GithubDao:
 
         return changed_files
 
-#    def check_files(self, pr: PullRequest):
-#        url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
-#        payload = requests.get(url, headers=self.head).json()
-#        files = []
-#        bad_files = []
-#        download_urls = []
-#        for i in range(len(payload)):
-#            files.append(payload[i]['filename'])
-#            download_urls.append(payload[i]['raw_url'])
-#        for fileName in files:
-#            if fileName.split("/")[0] != pr.branch:
-#                bad_files.append(fileName)
-#        if len(bad_files) > 0:
-#            pr.status = 'Failed'
-#            report = "Only files in the \"{branch}\" directory should be changed. The following files were " \
-#                     "also changed in this branch:\n".format(branch=pr.branch)
-#            for file in bad_files:
-#                report += "- {file}\n".format(file=file)
-#            pr.report.valid_files = False
-#            pr.report.valid_files_report = report
-#            valid = False
-#        else:
-#            valid = True
-#        for fileName in files:
-#            if fileName != "{}/description.md".format(pr.branch) and fileName != "{}/config.yaml".format(pr.branch):
-#                return valid, False, download_urls
-#        return valid, True, download_urls
-
     def merge(self, pr: PullRequest) -> bool:
         request = {'sha': pr.sha}
         url = '{repo}pulls/{num}/merge?access_token={token}'.format(repo=self.repo_url, num=pr.pr, token=self.token)
@@ -108,68 +80,6 @@ class GithubDao:
         email = "steve.piccolo@gmail.com"
         return email
 
-#    def make_request(self, url: str, request_type: str='get', authorization: str=None, full_url: bool = False):
-#        if not full_url:
-#            url = self.repo_url + url
-#        if request_type == 'get':
-#            response = requests.get(url, headers=self.head).json()
-#        else:
-#            response = requests.put(url, headers=self.head).json()
-#        return response
-
-#    def get_contents(self, path):
-#        if not path[0] == '/':
-#            path = "/{}".format(path)
-#
-#        url = "{}contents{}".format(self.repo_url, path)
-#        response = requests.get(url, headers=self.head).json()
-#        return response
-#
-#    def get_helper_files(self, pr):
-#        #response = self.get_contents(pr.branch + "/Helper")
-#        response = self.get_contents("Helper")
-#
-#        if type(response) is dict:
-#            if response['message']:
-#                printToLog(response['message'])
-#                sys.exit(1)
-#
-#        file_dict = {}
-#
-#        for i in range(len(response)):
-#            file_path = response[i]['path']
-#            file_type = response[i]['type']
-#            download_url = response[i]['download_url']
-#
-#            if file_type == 'file':
-#                file_dict[file_path] = download_url
-#            elif file_type == 'dir':
-#                file_dict.update(self.get_helper_files(file_path))
-#
-#        return file_dict
-
-#    def get_existing_files(self, directory, files, removed_files):
-#        response = self.get_contents(directory)
-#
-#        if type(response) is dict:
-#            if response['message']:
-#                return []
-#
-#        existing_files = []
-#        for i in range(len(response)):
-#            file_path = response[i]['path']
-#
-#            if file_path in removed_files:
-#                continue
-#
-#            if file_path not in files:
-#                if response[i]['type'] == 'dir':
-#                    existing_files.extend(self.get_existing_files(file_path, files, removed_files))
-#                elif response[i]['type'] == 'file':
-#                    existing_files.append(response[i]['download_url'])
-#
-#        return existing_files
-
     def get_branch(self, pr, destDir):
         cloneUrl = "https://github.com/{}/WishBuilder.git".format(pr.repo_owner)
 
@@ -185,48 +95,3 @@ class GithubDao:
 
         os.chdir(pwd)
         shutil.rmtree(tmpDir, ignore_errors=True)
-
-#    def get_branch_files(self, pr):
-#        url = '{}git/commits/{}'.format(self.repo_url, pr.sha)
-#        url = url.replace("/{}/".format(REPO_OWNER), "/{}/".format(pr.repo_owner))
-#        response = requests.get(url, headers=self.head).json()
-#
-#        branchUrl = response['tree']['url']
-#        response = requests.get(branchUrl, headers=self.head).json()
-#
-#        pathUrl = [pathDict['url'] for pathDict in response['tree'] if pathDict['path'] == pr.branch][0]
-#        helperUrl = [pathDict['url'] for pathDict in response['tree'] if pathDict['path'] == "Helper"][0]
-#        print(helperUrl)
-#        print(response)
-#        sys.exit(1)
-#        response = requests.get(pathUrl, headers=self.head).json()
-#
-#        branchDict = {}
-#        for pathDict in response['tree']:
-#            filePath = os.path.join(pr.branch, pathDict['path'])
-#
-#            fileUrl = pathDict['url']
-#            response = requests.get(fileUrl, headers=self.head).json()
-#
-#            fileContent = base64.b64decode(response['content'])
-#            branchDict[filePath] = fileContent
-#
-#        return branchDict
-
-#    def download_file(self, url: str, destination: str= './'):
-#        split_url = url.split('/')
-#        if 'raw' in split_url:
-#            i = split_url.index('raw')
-#        else:
-#            i = split_url.index('master') - 1
-#        local_path = destination + "/".join(split_url[i+2:-1])
-#        local_filename = destination + "/".join(split_url[i+2:])
-#        if not os.path.exists(local_path):
-#            os.makedirs(local_path)
-#        # local_filename = destination + url.split('/')[-1]
-#        response = requests.get(url, stream=True, headers=self.head)
-#        with open(local_filename, 'wb') as fs:
-#            for chunk in response.iter_content(chunk_size=1024):
-#                if chunk:
-#                    fs.write(chunk)
-#        return local_filename

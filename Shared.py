@@ -26,3 +26,16 @@ def execShellCommand(command):
     except OSError as e:
         print("Execution failed:", e, file=sys.stderr)
         return 1
+
+def listdir_fullpath(directory: str) -> []:
+    return [os.path.join(directory, file) for file in os.listdir(directory)]
+
+def get_files(directory: str) -> []:
+    files = []
+    file_list = listdir_fullpath(directory)
+    for file in file_list:
+        if os.path.isdir(file):
+            files.extend(get_files(file))
+        else:
+            files.append(file)
+    return files

@@ -23,19 +23,6 @@ def check_changed_files(changed_files, pr):
 
     return valid
 
-def listdir_fullpath(directory: str) -> []:
-    return [os.path.join(directory, file) for file in os.listdir(directory)]
-
-def get_files(directory: str) -> []:
-    files = []
-    file_list = listdir_fullpath(directory)
-    for file in file_list:
-        if os.path.isdir(file):
-            files.extend(get_files(file))
-        else:
-            files.append(file)
-    return files
-
 def test_folder(pr: PullRequest):
     printToLog('Testing - test_folder', pr)
 
@@ -167,8 +154,6 @@ def test_scripts(pr: PullRequest):
     for script_name in USER_SCRIPTS:
         printToLog('Testing - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
         return_code = execShellCommand("cd {}/{}; bash {} >> {}".format(os.getcwd(), pr.branch, script_name, pr.log_file_path))
-        #results = subprocess.run(
-        #'bash {} >> {}'.format(bash_script_name, pr.log_file_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
         if return_code != 0:
             report += '\n\n' + RED_X + '\t' + os.path.basename(script_name) + ' returned an error. Check the attached log.\n\n'
@@ -219,65 +204,3 @@ def test_gzip(pr: PullRequest, gz_file_paths):
     pr.report.gzip_test_report = report
 
     return passed
-
-#def test_bash_script(bash_script_name, pr: PullRequest):
-#    printToLog('Testing - test_bash_script - {}'.format(os.path.basename(bash_script_name)), pr)
-#
-#    report = "Executing " + bash_script_name + ": "
-#    passed = True
-#    results = subprocess.run(
-#        'bash {} >> {}'.format(bash_script_name, pr.log_file_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-#
-#    if results.returncode != 0:
-#        report += '\n\n' + RED_X + '\t' + bash_script_name.split('/')[-1] + ' returned an error:\n```bash\n' + \
-#                     results.stderr.decode().rstrip('\n') + '\n```\n\n'
-#        passed = False
-#        printToLog('FAIL - test_bash_script - {}'.format(os.path.basename(bash_script_name)), pr)
-#    else:
-#        report += "Success\n\n"
-#        printToLog('PASS - test_bash_script - {}'.format(os.path.basename(bash_script_name)), pr)
-#
-#    return report, passed
-
-#def check_zip(file_path):
-#    passed = True
-#    report = ""
-#
-#    if file_path.endswith('.gz'):
-#        file_type = str(subprocess.check_output(['file', '-b', file_path]))
-#
-#        if re.search(r"gzip compressed data", file_type):
-#            report += CHECK_MARK + '\t' + os.path.basename(file_path) + ' was created and zipped correctly.\n\n'
-#        else:
-#            report += RED_X + '\t' + os.path.basename(file_path) + ' exists, but was not zipped correctly.\n\n'
-#            passed = False
-#
-#    return report, passed
-
-#def test_cleanup(pr: PullRequest):
-#    printToLog('Testing - test_cleanup', pr)
-#
-#    cleanup_file_path = '{}/{}/{}'.format(os.getcwd(), pr.branch, CLEANUP_FILE_NAME)
-#    execShellCommand('chmod +x {}'.format(cleanup_file_path))
-#    execShellCommand('./' + CLEANUP_FILE_NAME)
-#
-#    passed = True
-#    report = '### Testing Directory after cleanup . . .\n\n'
-#    current_directory = os.listdir(os.getcwd())
-#
-#    for file in current_directory:
-#        if file not in original_directory:
-#            passed = False
-#            report += RED_X + '\t\"' + file + '\" should have been deleted during cleanup.\n\n'
-#
-#    if passed:
-#        report += '#### Results: PASS\n---\n'
-#        printToLog('PASS - test_cleanup', pr)
-#    else:
-#        report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
-#        printToLog('FAIL - test_cleanup', pr)
-#
-#    pr.report.cleanup_report = report
-#    pr.report.pass_cleanup = passed
-#
-#    return passed

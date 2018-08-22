@@ -5,8 +5,8 @@ class Report:
     def __init__(self, report_json: str=None):
         if not report_json:
             # Valid File Test
-#            self.valid_files = False
-#            self.valid_files_report = ''
+            self.valid_files = False
+            self.valid_files_report = ''
 
             # Directory Test
             self.pass_directory_test = False
@@ -59,8 +59,8 @@ class Report:
             report_dict = json.loads(report_json)
 
             # Valid File Test
-#            self.valid_files = report_dict['valid_files']
-#            self.valid_files_report = report_dict['valid_files_report']
+            self.valid_files = report_dict['valid_files']
+            self.valid_files_report = report_dict['valid_files_report']
 
             # Directory Test
             self.pass_directory_test = report_dict['pass_directory_test']
@@ -117,12 +117,12 @@ class Report:
         if self.other:
             return self.other_content
         else:
-#            out = self.valid_files_report
-            out = self.directory_test_report
+            out = self.valid_files_report
+            out += self.directory_test_report
             out += self.configuration_test_report
             out += self.file_test_report
-            out += self.gzip_test_report
             out += self.script_test_report
+            out += self.gzip_test_report
             out += self.key_test_report
             out += self.meta_data_preview
             # out += self.meta_tests_report

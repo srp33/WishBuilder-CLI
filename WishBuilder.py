@@ -67,27 +67,34 @@ def test(pr: PullRequest, sql_dao):
         if not os.path.exists(test_dir):
             os.makedirs(test_dir)
 
+        check_changed_files(git_dao.get_files_changed(pr), pr)
         git_dao.get_branch(pr, test_dir)
 
         os.chdir(test_dir)
+
+        data_dir = "{}/{}".format(test_dir, pr.branch)
+        test_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.startswith("test_") and x.endswith(".tsv")]
+
+        if len(test_file_paths) == 0:
+            passed = False
+            printToLog("No test files exist.")
 
         # Run tests
         test_folder(pr)
         test_config(pr)
         test_files(pr)
-        test_gzip(pr)
 
         # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
         if test_scripts(pr):
-            passed = check_test_for_every_data(pr, os.listdir(os.getcwd()))
+            gz_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".gz")]
+            passed = test_gzip(pr, gz_file_paths) and check_test_for_every_data(pr, gz_file_paths, test_file_paths)
 
             if passed:
                 shutil.rmtree(raw_data_storage, ignore_errors=True)
                 os.mkdir(raw_data_storage)
 
-                for f in os.listdir(os.getcwd()):
-                    if f.endswith('.gz'):
-                        os.system('mv {} {}'.format(f, raw_data_storage))
+                for f in gz_file_paths:
+                    os.system('mv {} {}/'.format(f, raw_data_storage))
 
         pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
         pr.date = time.strftime("%D", time.gmtime(time.time()))
@@ -104,11 +111,10 @@ def test(pr: PullRequest, sql_dao):
         pr.report.other = True
         #pr.report.other_content = '\n### WishBuilder Error, we are working on it and will rerun your request when we fix the issue. (Error message: {})\n\n'.format(e)
         pr.report.other_content = get_exception_stack(e)
-    finally:
-        os.chdir(cwd)
-        cleanup(pr)
 
     send_report(pr)
+    os.chdir(cwd)
+    cleanup(pr)
 
 
 #def fix_files():

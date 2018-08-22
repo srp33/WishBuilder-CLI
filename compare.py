@@ -113,7 +113,7 @@ def check_test_columns(col_headers, file):
     return passed, report
 
 def get_test_file_path(data_file_path):
-    return 'test_' + data_file_path.rstrip('.gz')
+    return os.path.dirname(data_file_path) + '/test_' + os.path.basename(data_file_path).rstrip('.gz')
 
 def compare_files(data_file_list, test_file_list):
     passed = True
@@ -201,42 +201,36 @@ def compare_files(data_file_list, test_file_list):
     return report, passed, len(unique_samples)
 
 # Check if there is a test file for every data file
-def check_test_for_every_data(pr: PullRequest, file_list):
+def check_test_for_every_data(pr: PullRequest, gz_file_paths, test_file_paths):
     report = "### Testing Files:\n\n"
-    data_files = []
-    test_files = []
     passed = True
 
-    for f in file_list:
-        if f.endswith(".tsv.gz"):
-            data_files.append(f)
-            test_file_path = get_test_file_path(f)
+    for f in gz_file_paths:
+        test_file_path = get_test_file_path(f)
 
-            if not os.path.exists(test_file_path):
-                report += "{}\tData file {} is missing required test file {}\n\n".format(RED_X, f, test_file_path)
-                passed = False
-                continue
-        elif f.startswith("test_"):
-            test_files.append(f)
-            data_file_path = f.lstrip("test_") + ".gz"
+        if not os.path.exists(test_file_path):
+            report += "{}\tData file {} is missing required test file {}\n\n".format(RED_X, os.path.basename(f), os.path.basename(test_file_path))
+            passed = False
 
-            if not os.path.exists(data_file_path):
-                report += "{}\tTest file {} is missing required data file {}\n\n".format(RED_X, f, data_file_path)
-                passed = False
-                continue
+    for f in test_file_paths:
+        data_file_path = os.path.dirname(f) + "/" + os.path.basename(f).lstrip("test_") + ".gz"
+
+        if not os.path.exists(data_file_path):
+            report += "{}\tTest file {} is missing required data file {}\n\n".format(RED_X, os.path.basename(f), os.path.basename(data_file_path))
+            passed = False
 
     if not passed:
         report += "#### Results: FAIL\n\n\n"
         pr.report.key_test_report = report
         pr.report.pass_key_test = False
     else:
-        r, passed = check_test_files(test_files)
+        r, passed = check_test_files(test_file_paths)
         report += r
         pr.report.key_test_report = report
         pr.report.pass_key_test = passed
 
         if passed:
-            report, passed, num_samples = compare_files(data_files, test_files)
+            report, passed, num_samples = compare_files(gz_file_paths, test_file_paths)
             pr.num_samples = num_samples
             pr.report.data_tests_report = report
             pr.report.pass_data_tests = passed

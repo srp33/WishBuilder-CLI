@@ -45,27 +45,20 @@ class GithubDao:
                 return pr
         return None
 
-#    def get_files_changed(self, pr: PullRequest):
-#        url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
-#        #print(url)
-#        payload = requests.get(url, headers=self.head).json()
-#
-#        status_dict = {}
-#        #url_dict = {}
-#        #renamed = set()
-#
-#        for i in range(len(payload)):
-#            file_name = payload[i]['filename']
-#            url = payload[i]['raw_url']
-#            status = payload[i]['status']
-#
-#            status_dict[file_name] = status
-#            url_dict[file_name] = status
-#
-#            if status == "renamed":
-#                renamed.add(payload[i]['previous_filename'])
-#
-#        return status_dict, url_dict, renamed
+    def get_files_changed(self, pr: PullRequest):
+        url = self.repo_url + 'pulls/{}/files'.format(pr.pr)
+        payload = requests.get(url, headers=self.head).json()
+
+        changed_files = []
+
+        for i in range(len(payload)):
+            file_name = payload[i]['filename']
+            status = payload[i]['status']
+
+            if status != "removed":
+                changed_files.append(file_name)
+
+        return changed_files
 
 #    def check_files(self, pr: PullRequest):
 #        url = self.repo_url + 'pulls/{}/files'.format(pr.pr)

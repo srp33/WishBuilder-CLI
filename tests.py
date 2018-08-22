@@ -4,25 +4,24 @@ from Constants import *
 from PullRequest import PullRequest
 from Shared import *
 
-#def check_branch_files(pr: PullRequest):
-#    report = ""
-#    valid = True
-#
-#    for fileName in branch_dict:
-#        path = fileName.split("/")
-#
-#        if path[0] != pr.branch:
-#            valid = False
-#            report += "Only files in the \"{}\" directory should be changed on this branch, but \"{}\" was changed.".format(pr.branch, fileName)
-#            #report += "Only files in the \"{}\" or \"Helper\" directory should be changed, but \"{}\" was changed.".format(pr.branch, fileName)
-#
-#    pr.report.valid_files = valid
-#
-#    if not valid:
-#        pr.report.valid_files_report = report
-#        pr.status = 'Failed'
-#
-#    return valid
+def check_changed_files(changed_files, pr):
+    report = ""
+    valid = True
+
+    for fileName in changed_files:
+        path = fileName.split("/")
+
+        if path[0] != pr.branch and path[0] != "Helper":
+            valid = False
+            report += "Only files in the \"{}\" or \"Helper\" directory should be changed on this branch, but \"{}\" was changed.".format(pr.branch, fileName)
+
+    pr.report.valid_files = valid
+
+    if not valid:
+        pr.report.valid_files_report = report
+        pr.status = 'Failed'
+
+    return valid
 
 def listdir_fullpath(directory: str) -> []:
     return [os.path.join(directory, file) for file in os.listdir(directory)]
@@ -159,12 +158,42 @@ def test_files(pr: PullRequest):
 
     return passed
 
-def test_gzip(pr: PullRequest):
+def test_scripts(pr: PullRequest):
+    printToLog('Testing - test_scripts', pr)
+
+    report = "### Running user scripts . . .\n\n"
+
+    passed = True
+    for script_name in USER_SCRIPTS:
+        printToLog('Testing - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
+        return_code = execShellCommand("cd {}/{}; bash {} >> {}".format(os.getcwd(), pr.branch, script_name, pr.log_file_path))
+        #results = subprocess.run(
+        #'bash {} >> {}'.format(bash_script_name, pr.log_file_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+        if return_code != 0:
+            report += '\n\n' + RED_X + '\t' + os.path.basename(script_name) + ' returned an error. Check the attached log.\n\n'
+            passed = False
+            printToLog('FAIL - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
+            break
+        else:
+            report += '\n\n' + CHECK_MARK + '\t' + os.path.basename(script_name) + ' executed properly.\n\n'
+            printToLog('PASS - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
+
+    if passed:
+        report += "#### Results: PASS\n---\n"
+    else:
+        report += "#### Results: **<font color=\"red\">FAIL</font>**\n---\n"
+
+    pr.report.pass_script_test = passed
+    pr.report.script_test_report = report
+
+    return passed
+
+def test_gzip(pr: PullRequest, gz_file_paths):
     passed = True
     report = '\n### Testing gzip files:\n\n'
 
     printToLog('Testing - test_gzip', pr)
-    gz_file_paths = [x for x in os.listdir("{}/{}".format(os.getcwd(), pr.branch)) if x.endswith(".gz")]
 
     if len(gz_file_paths) == 0:
         report += RED_X + '\tNo gzip files exist.\n\n'
@@ -176,7 +205,7 @@ def test_gzip(pr: PullRequest):
             if re.search(r"gzip compressed data", file_type):
                 report += CHECK_MARK + '\t' + os.path.basename(file_path) + ' was created and zipped correctly.\n\n'
             else:
-                report += RED_X + '\t' + os.path.basename(file_path) + ' exists, but was not zipped correctly.\n\n'
+                report += RED_X + '\t' + os.path.basename(file_path) + ' exists, but was not zipped correctly (' + file_type.decode() + ').\n\n'
                 passed = False
 
     if passed:
@@ -188,36 +217,6 @@ def test_gzip(pr: PullRequest):
 
     pr.report.pass_gzip_test = passed
     pr.report.gzip_test_report = report
-
-    return passed
-
-def test_scripts(pr: PullRequest):
-    printToLog('Testing - test_scripts', pr)
-
-    report = "### Running user scripts . . .\n\n"
-
-    passed = True
-    for script_name in USER_SCRIPTS:
-        return_code = exececuteShellCommand("cd {}/{}; bash {}".format(os.getcwd(), pr.branch, script_name))
-        #results = subprocess.run(
-        #'bash {} >> {}'.format(bash_script_name, pr.log_file_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-
-        if return_code != 0:
-            report += '\n\n' + RED_X + '\t' + os.path.basename(script_name) + ' returned an error. Check the attached log.\n\n'
-            passed = False
-            printToLog('FAIL - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
-            break
-        else:
-            report += '\n\n' + CHECK_MARK + '\t' + os.path.basename(script_name) + ' did not return an error.\n\n'
-            printToLog('PASS - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
-
-    if passed:
-        report += "#### Results: PASS\n---\n"
-    else:
-        report += "#### Results: **<font color=\"red\">FAIL</font>**\n---\n"
-
-    pr.report.pass_script_test = passed
-    pr.report.script_test_report = report
 
     return passed
 

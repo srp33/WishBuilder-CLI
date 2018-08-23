@@ -41,6 +41,9 @@ def get_exception_stack(e):
 
     error += 'Traceback (most recent call last):'
     for item in reversed(inspect.getouterframes(tb.tb_frame)[1:]):
+        if item == None:
+            continue
+
         error += ' File "{1}", line {2}, in {3}\n<br><br>\n'.format(*item)
         for line in item[4]:
             error += ' ' + line.lstrip()

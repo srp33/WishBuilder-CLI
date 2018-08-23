@@ -169,8 +169,11 @@ def convert_to_parquet(pr: PullRequest, test_dir, raw_data_storage):
     data_path = os.path.join(geney_dataset_path, 'data.pq')
     ss = ShapeShifter.ShapeShifter(data_files[0])
     ss.merge_files(data_files[1:], data_path, 'parquet')
+
     get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
+
     get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
+
     os.chdir(cwd)
 
 def get_metadata(data_file, out_file):

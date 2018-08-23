@@ -153,7 +153,10 @@ def test_scripts(pr: PullRequest):
     passed = True
     for script_name in USER_SCRIPTS:
         printToLog('Testing - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
-        return_code = execShellCommand("cd {}/{}; bash {} >> {}".format(os.getcwd(), pr.branch, script_name, pr.log_file_path))
+        command = "cd {}/{}; bash {} >> {}".format(os.getcwd(), pr.branch, script_name, pr.log_file_path)
+        printToLog(command)
+        return_code = execShellCommand(command)
+        printToLog("Return code: {}".format(return_code))
 
         if return_code != 0:
             report += '\n\n' + RED_X + '\t' + os.path.basename(script_name) + ' returned an error. Check the attached log.\n\n'

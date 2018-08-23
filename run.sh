@@ -1,3 +1,3 @@
 #! /bin/bash
 
-python WishBuilder.py
+python WishBuilder.py | tee -a /Shared/log.txt

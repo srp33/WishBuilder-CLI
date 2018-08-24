@@ -78,46 +78,48 @@ def test(pr: PullRequest, sql_dao):
         if not os.path.exists(test_dir):
             os.makedirs(test_dir)
 
-        check_changed_files(git_dao.get_files_changed(pr), pr)
-        git_dao.get_branch(pr, test_dir)
+        passed = check_changed_files(git_dao.get_files_changed(pr), pr)
 
-        os.chdir(test_dir)
+        if passed:
+            git_dao.get_branch(pr, test_dir)
 
-        data_dir = "{}/{}".format(test_dir, pr.branch)
-        test_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.startswith("test_") and x.endswith(".tsv")]
+            os.chdir(test_dir)
 
-        if len(test_file_paths) == 0:
-            passed = False
-            printToLog("No test files exist.")
+            data_dir = "{}/{}".format(test_dir, pr.branch)
+            test_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.startswith("test_") and x.endswith(".tsv")]
 
-        # Run tests
-        test_folder(pr)
-        test_config(pr)
-        test_files(pr)
+            if len(test_file_paths) == 0:
+                passed = False
+                printToLog("No test files exist.")
 
-        # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
-        if test_scripts(pr):
-            gz_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".gz")]
+            # Run tests
+            test_folder(pr)
+            test_config(pr)
+            test_files(pr)
 
-            gzip_passed = test_gzip(pr, gz_file_paths)
-            data_passed = check_test_for_every_data(pr, gz_file_paths, test_file_paths)
+            # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
+            if test_scripts(pr):
+                gz_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".gz")]
 
-            if gzip_passed and data_passed:
-                shutil.rmtree(raw_data_storage, ignore_errors=True)
-                os.mkdir(raw_data_storage)
+                gzip_passed = test_gzip(pr, gz_file_paths)
+                data_passed = check_test_for_every_data(pr, gz_file_paths, test_file_paths)
 
-                for f in gz_file_paths:
-                    os.system('mv {} {}/'.format(f, raw_data_storage))
+                if gzip_passed and data_passed:
+                    shutil.rmtree(raw_data_storage, ignore_errors=True)
+                    os.mkdir(raw_data_storage)
 
-        pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
-        pr.date = time.strftime("%D", time.gmtime(time.time()))
-        pr.e_date = time.time()
-        pr.check_if_passed()
-        sql_dao.update(pr)
+                    for f in gz_file_paths:
+                        os.system('mv {} {}/'.format(f, raw_data_storage))
 
-        if pr.passed:
-            convert_to_parquet(pr, test_dir, raw_data_storage)
-            git_dao.merge(pr)
+            pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
+            pr.date = time.strftime("%D", time.gmtime(time.time()))
+            pr.e_date = time.time()
+            pr.check_if_passed()
+            sql_dao.update(pr)
+
+            if pr.passed:
+                convert_to_parquet(pr, test_dir, raw_data_storage)
+                git_dao.merge(pr)
     except Exception as e:
         pr.status = 'Error'
         pr.passed = False

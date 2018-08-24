@@ -13,7 +13,7 @@ def check_changed_files(changed_files, pr):
 
         if path[0] != pr.branch and path[0] != "Helper":
             valid = False
-            report += "Only files in the \"{}\" or \"Helper\" directory should be changed on this branch, but \"{}\" was changed.".format(pr.branch, fileName)
+            report += "{0}\tOnly files in the \"{1}\" or \"Helper\" directory should be changed on this branch, but \"{2}\" was changed.".format(RED_X, pr.branch, fileName)
 
     pr.report.valid_files = valid
 

@@ -50,13 +50,14 @@ def check_test_for_every_data(pr: PullRequest, gz_file_paths, test_file_paths):
 
     return passed
 
-def one_feature(filePath):
-    df = pd.read_csv(filePath, sep='\t', low_memory=False)
+def get_num_data_features(data_file_path):
+    printToLog("Checking how many variables are in {}".format(data_file_path), pr)
 
-    if len(df.columns.values) > 2:
-        return True
-    else:
-        return False
+    header_items = None
+    with gzip.open(data_file_path) as data_file:
+        header_items = data_file.readline().decode().rstrip("\n").split("\t")
+
+    return len(header_items)
 
 # Are all test files in correct format?
 def check_test_files(test_file_list, pr):
@@ -68,10 +69,12 @@ def check_test_files(test_file_list, pr):
     passed = True
 
     for f in test_file_list:
-        min_features = MIN_FEATURES
-        data_file = get_data_file_path(f)
-        if one_feature(data_file):
-            min_features = 1
+#        min_features = MIN_FEATURES
+#        data_file_path = get_data_file_path(f)
+#        num_data_features = get_num_data_features(data_file_path)
+#
+#        if num_data_features == 1:
+#            min_features = 1
 
         row_count = 0
         samples = {}
@@ -100,7 +103,7 @@ def check_test_files(test_file_list, pr):
                         samples[data[0]] = [data[1] + data[2]]
                     else:
                         if data[1] + data[2] not in samples[data[0]]:
-                            samples[data[0]].append(data[1]+data[2])
+                            samples[data[0]].append(data[1] + data[2])
 
         if len(samples.keys()) < min_samples:  # Make sure there are enough unique sample IDs to test
             report += "{red_x}\t\"{0}\" does not contain enough unique samples to test (min: {1})\n\n"\
@@ -110,15 +113,15 @@ def check_test_files(test_file_list, pr):
             report += "{check_mark}\t\"{0}\" contains enough unique samples to test\n\n"\
                 .format(os.path.basename(f), check_mark=CHECK_MARK)
 
-        for sample in samples:  # Make sure each sample has enough features to test
-            if len(samples[sample]) < min_features:
-                report += "{red_x}\tSample \"{0}\" does not have enough features to test (min: {1})\n\n"\
-                    .format(sample, min_features, red_x=RED_X)
-                passed = False
-
-        if passed:
-            report += "{check_mark}\t\"{0}\" has enough features to test (min: {1})\n\n"\
-                .format(os.path.basename(f), min_features, check_mark=CHECK_MARK)
+#        for sample in samples:  # Make sure each sample has enough features to test
+#            if len(samples[sample]) < min_features:
+#                report += "{red_x}\tSample \"{0}\" does not have enough features to test (min: {1})\n\n"\
+#                    .format(sample, min_features, red_x=RED_X)
+#                passed = False
+#
+#        if passed:
+#            report += "{check_mark}\t\"{0}\" has enough features to test (min: {1}) for every sample\n\n"\
+#                .format(os.path.basename(f), min_features, check_mark=CHECK_MARK)
 
         if row_count == 0:  # Check if file is empty
             report += "{red_x}\t\"{0}\" is empty.\n\n".format(f, red_x=RED_X)
@@ -140,6 +143,7 @@ def check_test_files(test_file_list, pr):
 
 # Check if the column headers of the test f are "Sample", "Variable", and "Value"
 def check_test_columns(col_headers, file):
+    printToLog("Running check_test_columns")
     passed = True
     report = ""
 

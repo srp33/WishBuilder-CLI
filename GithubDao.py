@@ -87,7 +87,7 @@ class GithubDao:
         tmpDir = tempfile.mkdtemp()
         os.chdir(tmpDir)
 
-        cloneCommand = "git clone {}; cd WishBuilder; git pull origin {}".format(cloneUrl, pr.branch)
+        cloneCommand = "git clone {}; cd WishBuilder; git config user.name 'Snail Mail'; git config user.email '<>'; git pull origin {}".format(cloneUrl, pr.branch)
         execShellCommand(cloneCommand, pr)
 
         mvCommand = "mv WishBuilder/Helper {}/; mv WishBuilder/{} {}/".format(destDir, pr.branch, destDir)

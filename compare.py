@@ -84,7 +84,7 @@ def check_test_files(test_file_list, pr):
         with open(f, 'r') as test_file:
             headers = test_file.readline().rstrip('\n').split('\t')
             # Make sure there are three columns named Sample, Variable, Value
-            passed, temp_report = check_test_columns(headers, f)
+            passed, temp_report = check_test_columns(headers, f, pr)
             if passed:
                 report += "{check_mark}\t\"{0}\" has three columns with the correct headers\n\n"\
                     .format(os.path.basename(f), check_mark=CHECK_MARK)
@@ -142,8 +142,8 @@ def check_test_files(test_file_list, pr):
     return report, passed
 
 # Check if the column headers of the test f are "Sample", "Variable", and "Value"
-def check_test_columns(col_headers, file):
-    printToLog("Running check_test_columns")
+def check_test_columns(col_headers, file, pr):
+    printToLog("Running check_test_columns", pr)
     passed = True
     report = ""
 

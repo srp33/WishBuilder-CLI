@@ -49,6 +49,9 @@ def get_exception_stack(e):
             error += ' ' + line.lstrip()
         for item in inspect.getinnerframes(tb):
             error += ' File "{1}", line {2}, in {3}\n<br><br>\n'.format(*item)
+
+        if len(item) < 5 or item[4] == None:
+            continue
         for line in item[4]:
             error += ' ' + line.lstrip()
 
@@ -132,6 +135,7 @@ def test(pr: PullRequest, sql_dao):
     send_report(pr)
     os.chdir(cwd)
     shutil.rmtree(test_dir, ignore_errors=True)
+    shutil.rmtree(raw_data_storage, ignore_errors=True)
     print("Done")
 
 def convert_to_parquet(pr: PullRequest, test_dir, raw_data_storage):

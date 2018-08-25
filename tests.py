@@ -155,7 +155,7 @@ def test_scripts(pr: PullRequest):
         printToLog('Testing - test_bash_script - {}'.format(os.path.basename(script_name)), pr)
         command = "cd {}/{}; bash {} >> {}".format(os.getcwd(), pr.branch, script_name, pr.log_file_path)
         printToLog(command)
-        return_code = execShellCommand(command)
+        return_code = execShellCommand(command, pr)
         printToLog("Return code: {}".format(return_code))
 
         if return_code != 0:

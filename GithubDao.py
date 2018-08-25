@@ -88,10 +88,10 @@ class GithubDao:
         os.chdir(tmpDir)
 
         cloneCommand = "git clone {}; cd WishBuilder; git pull origin {}".format(cloneUrl, pr.branch)
-        execShellCommand(cloneCommand)
+        execShellCommand(cloneCommand, pr)
 
         mvCommand = "mv WishBuilder/Helper {}/; mv WishBuilder/{} {}/".format(destDir, pr.branch, destDir)
-        execShellCommand(mvCommand)
+        execShellCommand(mvCommand, pr)
 
         os.chdir(pwd)
         shutil.rmtree(tmpDir, ignore_errors=True)

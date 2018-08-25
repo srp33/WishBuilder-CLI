@@ -1,5 +1,6 @@
 import datetime, os, subprocess, sys
 from Constants import *
+from Shared import *
 
 def printToLog(message, pr=None):
     modMessage = "{:%Y-%m-%d %H:%M:%S}".format(datetime.datetime.now())
@@ -19,18 +20,14 @@ def printToLog(message, pr=None):
         else:
             print("Could not write log message to {}.".format(pr.log_file_path))
 
-def execShellCommand(command):
-    try:
-        retcode = subprocess.call(command, shell=True)
-        if retcode < 0:
-            print("Child was terminated by signal", -retcode, file=sys.stderr)
-#        else:
-#            print("Child returned", retcode, file=sys.stderr)
+def execShellCommand(command, pr):
+    printToLog(command, pr)
+    retcode = subprocess.call(command, shell=True)
 
-        return retcode
-    except OSError as e:
-        print("Execution failed:", e, file=sys.stderr)
-        return 1
+    if retcode < 0:
+        printToLog("Child was terminated by signal {}".format(-retcode), pr)
+
+    return retcode
 
 def listdir_fullpath(directory: str) -> []:
     return [os.path.join(directory, file) for file in os.listdir(directory)]

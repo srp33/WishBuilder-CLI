@@ -247,8 +247,8 @@ if __name__ == '__main__':
         sql_dao = SqliteDao(SQLITE_FILE)
         git_dao = GithubDao('https://api.github.com/repos/srp33/WishBuilder/', GH_TOKEN)
 
-        if os.path.exists(PRS_TO_DELETE_FILE):
-            with open(PRS_TO_DELETE_FILE) as prFile:
+        if os.path.exists(PRS_TO_TEST_FILE):
+            with open(PRS_TO_TEST_FILE) as prFile:
                 for line in prFile:
                     if line.startswith("#"):
                         continue

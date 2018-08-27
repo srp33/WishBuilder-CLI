@@ -1,93 +1,45 @@
-# WishBuilderCI
-Continuous Integration Pipeline which tests and merges pull requests to [*WishBuilder*](https://github.com/srp33/WishBuilder)
+# WishBuilder-CLI
+
+WishBuilder-CLI is a continuous-integration pipeline that tests and merges pull requests for [WishBuilder](https://github.com/srp33/WishBuilder).
 
 ## Purpose
 
-*WishBuilder* is an open source project that provides biology-related datasets to *Geney*, a service that makes the data easier to filter and query for research. *WishBuilder* allows users to submit code which gathers and reformats data pulled from public Web servers into a consistent format described on the project [wiki](https://srp33.github.io/WishBuilder/).
+*WishBuilder* is an open source project that provides biology-related datasets to [Geney](https://github.com/srp33/Geney), a Web application that makes the data easier to filter and query for research. *WishBuilder* allows users to submit code which gathers and reformats data pulled from public Web servers into a consistent format described on the project [wiki](https://srp33.github.io/WishBuilder/).
 
-*WishBuilderCI* (Continuous Integration) manages the pull requests submitted to *WishBuilder* by detecting them automatically, testing that the ouput data are consistent with the *WishBuilder* requirements, and adding the datasets created by the code contained in each passed dataset to *Geney*.
+When a WishBuilder researcher prepares scripts for a given dataset, the researcher submits a [pull request](https://help.github.com/articles/about-pull-requests) to the [WishBuilder](https://github.com/srp33/WishBuilder) GitHub repository. WishBuilder-CLI checks for these pull requests, executes the scripts in a Docker container, tests that the ouput data are consistent with the WishBuilder requirements, and add datasets to [Geney](https://github.com/srp33/Geney).
 
-## How it Works
+## Using WishBuilder-CLI
 
-#### Environment
+WishBuilder-CLI tests code within a [Docker](https://docker.com) container. It also uses [Docker Compose](https://docs.docker.com/compose). You must have these tools installed to execute WishBuilder-CLI. They can be installed on many different operating systems.
 
-* The WB_PATH environment variable must be set to a directory path containing the WishBuilder-CLI repository
-* 'private.py' must exist with the following constant variables
-    - GH_TOKEN (The token associated with a collaborator in order to receive information from the GitHub API)
-    - WISHBUILDER_EMAIL (The email address used to send status reports to users)
-    - WISHBUILDER_PASS (The password associated with the WISHBUILDER_EMAIL account)
+The docker-compose.yaml contains configuration settings for executing WishBuilder-CLI. These settings may differ, depending on who is executing WishBuilder-CLI and where they are executing it. This repository has an example docker-compose.yaml.
 
-#### Docker
-
-*WishBuilderCI* requires [Docker](https://docker.com) to test code in an environment container. The "wishbuilder-cli" image used to create each container
- can be pulled from Docker Hub with this command:
-
-```bash
-docker pull srp33/wishbuilder-cli
-```
-
-If you would like to experiment within this container, you can explore the environment within a bash shell by using the following command:
-
-```bash
-docker run -it -v $(pwd):/app --rm srp33/wishbuilder-cli /bin/bash
-```
-
-#### App Structure
-
-This is the file structure of the app. Any folder not included in the repository is in the .gitignore and will be auto-generated if it doesn't exist, except
-for the private.py file which must be provided. The history.sql file keeps a record of all the pull requests, and the SHA's tested for each commit to them.
-The files produced by successful tests are moved into the **RawDatasets** directory. After the datasets are converted to the correct format for Geney, the
- data is stored in the **GeneyDatasets** directory.
-
-- /app/ (WB_DIRECTORY)
-    - WishBuilder-CLI (This repository)
-        - all files in repository plus these additional files (in .gitignore):
-        - testing/ (location for downloading and testing pull requests)
-        - **private.py**
-        - history.sql
-        - RawDatasets/
-            - Dataset1/
-                - data.tsv.gz
-                - metadata.tsv.gz
-                - config.yaml
-                - description.md
-            - Dataset2
-                - ...
-            - ...
-        - GeneyDatasets/
-            - Dataset1/
-                - data.h5
-                - metadata.sql
-                - metadata.json
-                - description.json
-            - Dataset2/
-                - ...
-            - ...
-    - GeneyTypeConverter/
-        - ([Type Converter Repository](https://github.com/zence/GeneyTypeConverter))
-
-#### Execution (Docker-Compose)
-
-1. Make sure that the WB_PATH environment variable is set.
-2. Make sure that private.py exists with the required constants.
-3. From the repository root, use docker-compose to start listening for pull requests:
+After you have created a custom docker-compose.yaml file, you can begin executing WishBuilder-CLI using this command:
 
 ```bash
 docker-compose up -d
 ```
 
-Stop WishBuilder-CLI with the stop command:
+This will execute WishBuilder-CLI in "detached" mode. This means that it will continue executing even after you log out. If you would like to see the program's latest output, execute the following command:
+
+```bash
+docker-compose logs
+```
+
+If you would like to stop executing WishBuilder-CLI, execute the following command:
 
 ```bash
 docker-compose down
 ```
 
-Restart a pull request:
+Below is a summary of files used by WishBuilder-CLIf
 
-```bash
-Working on this...
-```
+- /app/ (WB_DIRECTORY)
+    - testing/ (location for downloading and testing pull requests)
+    - history.sql (a SQLite database that tracks pull requests that have been processed)
+    - RawDatasets/ (stores TSV files that have been generated using WishBuilder code)
+    - GeneyDatasets/ (stores Parquet and config files that have been generated by WishBuilder-CLI)
 
-### Results
+#### Re-executing a pull request
 
-Status reports are emailed to the GitHub user who created the last commit to the pull request, provided that they have configured their email address using their git --config settings.
+Sometimes you may wish to re-execute a pull request after it has failed, even though the WishBuilder code hasn't changed. To do this, create a text file called prs_to_test.txt and put the number of the pull request (as listed on GitHub) on a separate line. You'll also need to stop and start WishBuilder-CLI.

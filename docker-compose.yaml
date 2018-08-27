@@ -1,0 +1,13 @@
+version: '2'
+
+services:
+  wb-container:
+    image: "srp33/wishbuilder-cli"
+    volumes:
+      - /Applications/GeneyWishBuilder/WishBuilder-CLI:/Shared
+    environment:
+      - GH_TOKEN=abcdefghijklmnopqrstuvwxyz12345678901234
+      - WISHBUILDER_EMAIL=abc@def.com
+      - WISHBUILDER_PASS=WordUp!!!?
+      - MAX_NUM_PROCESSES=1
+      - SLEEP_SECONDS=60

@@ -145,6 +145,122 @@ def test_files(pr: PullRequest):
 
     return passed
 
+# Are all test files in correct format?
+def check_test_files(test_file_list, pr):
+    printToLog("Running check_test_files", pr)
+
+    min_samples = MIN_SAMPLES
+    min_test_cases = MIN_TEST_CASES
+    report = ''
+    passed = True
+
+    for f in test_file_list:
+#        min_features = MIN_FEATURES
+#        data_file_path = get_data_file_path(f)
+#        num_data_features = get_num_data_features(data_file_path)
+#
+#        if num_data_features == 1:
+#            min_features = 1
+
+        row_count = 0
+        samples = {}
+
+        report += "#### Running \"{0}\"\n\n".format(f)
+
+        with open(f, 'r') as test_file:
+            headers = test_file.readline().rstrip('\n').split('\t')
+            # Make sure there are three columns named Sample, Variable, Value
+            passed, temp_report = check_test_columns(headers, f, pr)
+            if passed:
+                report += "{check_mark}\t\"{0}\" has three columns with the correct headers\n\n"\
+                    .format(os.path.basename(f), check_mark=CHECK_MARK)
+            else:
+                report += temp_report
+
+            for line in test_file:
+                row_count += 1
+                data = line.rstrip('\n').split('\t')
+                if len(data) is not 3 and len(data) is not 0:  # Make sure each row has exactly three columns
+                    report += "{red_x}\tRow {0} of \"{1}\" should contain exactly three columns\n\n"\
+                        .format(row_count, os.path.basename(f), red_x=RED_X)
+                    passed = False
+                elif len(data) != 0:  # Add data to a map
+                    if data[0] not in samples.keys():
+                        samples[data[0]] = [data[1] + data[2]]
+                    else:
+                        if data[1] + data[2] not in samples[data[0]]:
+                            samples[data[0]].append(data[1] + data[2])
+
+        if len(samples.keys()) < min_samples:  # Make sure there are enough unique sample IDs to test
+            report += "{red_x}\t\"{0}\" does not contain enough unique samples to test (min: {1})\n\n"\
+                .format(os.path.basename(f), min_samples, red_x=RED_X)
+            passed = False
+        else:
+            report += "{check_mark}\t\"{0}\" contains enough unique samples to test\n\n"\
+                .format(os.path.basename(f), check_mark=CHECK_MARK)
+
+#        for sample in samples:  # Make sure each sample has enough features to test
+#            if len(samples[sample]) < min_features:
+#                report += "{red_x}\tSample \"{0}\" does not have enough features to test (min: {1})\n\n"\
+#                    .format(sample, min_features, red_x=RED_X)
+#                passed = False
+#
+#        if passed:
+#            report += "{check_mark}\t\"{0}\" has enough features to test (min: {1}) for every sample\n\n"\
+#                .format(os.path.basename(f), min_features, check_mark=CHECK_MARK)
+
+        if row_count == 0:  # Check if file is empty
+            report += "{red_x}\t\"{0}\" is empty.\n\n".format(f, red_x=RED_X)
+            passed = False
+        elif row_count < min_test_cases:  # Check if there are enough test cases
+            report += "{red_x}\t\"{0}\" does not contain enough test cases ({1}; min: {2})\n\n"\
+                .format(os.path.basename(f), row_count, min_test_cases, red_x=RED_X)
+            passed = False
+        else:
+            report += "{check_mark}\t\"{0}\" contains enough test cases ({1}; min: {2})\n\n"\
+                .format(os.path.basename(f), row_count, min_test_cases, check_mark=CHECK_MARK)
+
+    r, passed = check_test_files(test_file_list, pr)
+    report += r
+
+    if passed:
+        report += "#### Results: PASS\n---\n"
+    else:
+        report += "#### Results: FAIL\n---\n"
+
+    return report, passed
+
+#def get_num_data_features(data_file_path):
+#    printToLog("Checking how many variables are in {}".format(data_file_path), pr)
+#
+#    header_items = None
+#    with gzip.open(data_file_path) as data_file:
+#        header_items = data_file.readline().decode().rstrip("\n").split("\t")
+#
+#    return len(header_items)
+
+# Check if the column headers of the test f are "Sample", "Variable", and "Value"
+def check_test_columns(col_headers, file, pr):
+    printToLog("Running check_test_columns", pr)
+    passed = True
+    report = ""
+
+    if len(col_headers) != 3:  # Make sure there are exactly three columns
+        report += "{red_x}\t\"{0}\" does not contain three columns\n\n".format(file, red_x=RED_X)
+        passed = False
+    else:  # Check the names of each column
+        if col_headers[0] != "Sample" and col_headers[0] != "SampleID":
+            report += "{red_x}\tFirst column of \"{0}\" must be titled \"Sample\"\n\n'".format(file, red_x=RED_X)
+            passed = False
+        if col_headers[1] != "Variable":
+            report += "{red_x}\tSecond column of \"{0}\" must be titled \"Variable\"\n\n".format(file, red_x=RED_X)
+            passed = False
+        if col_headers[2] != "Value":
+            report += "{red_x}\tThird column of \"{0}\" must be titled \"Value\"\n\n')".format(file, red_x=RED_X)
+            passed = False
+
+    return passed, report
+
 def test_scripts(pr: PullRequest):
     printToLog('Testing - test_scripts', pr)
 

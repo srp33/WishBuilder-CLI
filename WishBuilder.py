@@ -99,6 +99,7 @@ def test(pr: PullRequest, sql_dao):
             test_folder(pr)
             test_config(pr)
             test_files(pr)
+            check_test_files(test_file_paths, pr)
 
             # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
             if test_scripts(pr):

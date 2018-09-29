@@ -230,17 +230,18 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         tsv_map_dirs.append(tsv_map_dir)
 
     merged_file = os.path.join(geney_dataset_path, "data.tsv")
-#    printToLog("tsv_files:", pr)
-#    printToLog(",".join(tsv_files), pr)
-#    printToLog("tsv_map_dirs:", pr)
-#    printToLog(",".join(tsv_map_dirs), pr)
-#    printToLog("prefixes:", pr)
-#    printToLog(",".join(prefixes), pr)
-    merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
 
-#    for i in range(len(tsv_files)):
-#        os.remove(tsv_files[i])
-#        shutil.rmtree(tsv_map_dirs[i], ignore_errors=True)
+    feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
+
+    pr.feature_variables = num_features
+
+    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
+        # Strip the .mp off the end of each group name
+        feature_dict2 = {}
+        for key, value in feature_dict.items():
+            feature_dict2[key[:-3]] = feature_dict[key]
+
+        json.dump(feature_dict2, fp_groups)
 
     merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
     map_tsv(merged_file, merged_map_dir)
@@ -253,46 +254,31 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     merged_transposed_map_dir = os.path.join(geney_dataset_path, "transposed.mp")
     map_tsv(merged_transposed_file, merged_transposed_map_dir)
 
-#    for f in data_files:
-#        group_name = f.rstrip('.tsv')
-#        with gzip.open(f) as fp:
-#            with gzip.open('tmp.tsv.gz', 'w') as fp_out:
-#                columns = fp.readline().decode().rstrip('\n').split('\t')
-#                groups[group_name] = [columns[0]]
-#                for column in columns[1:]:
-#                    option = '{}_{}'.format(group_name, column)
-#                    groups[group_name].append(option)
-#                fp_out.write('\t'.join(groups[group_name]).encode())
-#                fp_out.write('\n'.encode())
-#                for line in fp:
-#                    fp_out.write(line)
-#                groups[group_name].remove(columns[0])
-#        os.remove(f)
-#        shutil.move('tmp.tsv.gz', f)
-
-#    num_features = 0
-#    for group in groups:
-#        num_features += len(groups[group])
-
-#    pr.feature_variables = num_features
-#    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
-#        json.dump(groups, fp_groups)
-
-#    data_path = os.path.join(geney_dataset_path, 'data.pq')
-#    ss = ShapeShifter.ShapeShifter(data_files[0])
-#    ss.merge_files(data_files[1:], data_path, 'parquet')
-
-#    get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
-
-#    get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
+    save_description(pr, test_dir, os.path.join(geney_dataset_path, DESCRIPTION_FILE_NAME))
+    #save_metadata(merged_file, os.path.join(geney_dataset_path, 'metadata.pkl'))
 
     os.chdir(cwd)
 
     #TODO: This is temporary
-    printToLog("Successfully saved Geney files")
+    #printToLog("Successfully saved Geney files")
     return False
 
-def get_metadata(data_file, out_file):
+def save_description(pr: PullRequest, test_dir, out_file):
+    with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
+        description = yaml.load(config_fp)
+    with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
+        md = description_fp.read()
+
+    description['description'] = md
+    description['id'] = pr.branch
+    description['uploadDate'] = time.time()
+    description['numSamples'] = pr.num_samples
+    description['numFeatures'] = pr.feature_variables
+
+    with open(out_file, 'w') as out_fp:
+        json.dump(description, out_fp)
+
+def save_metadata(data_file, out_file):
     ss = ShapeShifter.ShapeShifter(data_file)
     column_dict = ss.get_all_columns_info()
     meta = {}
@@ -316,21 +302,6 @@ def get_metadata(data_file, out_file):
     metadata = {'meta': meta}
     with open(out_file, 'wb') as fp:
         pickle.dump(metadata, fp)
-
-def get_description(pr: PullRequest, test_dir, out_file):
-    with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
-        description = yaml.load(config_fp)
-    with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
-        md = description_fp.read()
-
-    description['description'] = md
-    description['id'] = pr.branch
-    description['uploadDate'] = time.time()
-    description['numSamples'] = pr.num_samples
-    description['numFeatures'] = pr.feature_variables
-
-    with open(out_file, 'w') as out_fp:
-        json.dump(description, out_fp)
 
 def send_report(pr):
     #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='hillkimball@gmail.com')

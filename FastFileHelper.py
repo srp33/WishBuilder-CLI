@@ -308,7 +308,7 @@ def merge_tsv(file_paths, mp_paths, prefs, out_path, chunk):
     :param prefs: List of prefixes for features, same length and order as file_paths
     :param out_path: String path to output file
     :param chunk: Int indicating rows per chunk
-    :return:
+    :return: Dictionary containing prefix of each file and features in those files
     """
     cur_files = {in_f: dynamic_open(in_f, mode='r', use_gzip_module=in_f.endswith(".gz")) for in_f in file_paths}
     mp_samples = {mp_p: open_msgpack('/'.join([mp_p, "samples.msgpack"]), mode='rb') for mp_p in mp_paths}
@@ -362,3 +362,5 @@ def merge_tsv(file_paths, mp_paths, prefs, out_path, chunk):
 
     for cur_file in cur_files:
         cur_files[cur_file].close()
+
+    return mp_features, len(all_features)

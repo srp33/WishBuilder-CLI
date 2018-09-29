@@ -97,10 +97,14 @@ def test(pr: PullRequest, sql_dao):
                 printToLog("No test files exist.")
 
             # Run tests
-            test_folder(pr)
-            test_config(pr)
-            test_files(pr)
-            check_test_files(test_file_paths, pr)
+            if not test_folder(pr):
+                pr.passed = False
+            if not test_config(pr):
+                pr.passed = False
+            if not test_files(pr):
+                pr.passed = False
+            if not check_test_files(test_file_paths, pr):
+                pr.passed = False
 
             # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
             if test_scripts(pr):
@@ -115,7 +119,10 @@ def test(pr: PullRequest, sql_dao):
 
                     for f in tsv_file_paths:
                         os.system('mv {} {}/'.format(f, raw_data_storage))
+            else:
+                pr.passed = False
 
+            printToLog("Updating status", pr)
             pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
             pr.date = time.strftime("%D", time.gmtime(time.time()))
             pr.e_date = time.time()
@@ -123,10 +130,12 @@ def test(pr: PullRequest, sql_dao):
             sql_dao.update(pr)
 
             if pr.passed:
+                printToLog("Building data files for Geney", pr)
+
                 if build_geney_files(pr, test_dir, raw_data_storage):
                     git_dao.merge(pr)
                 else:
-                    printToLog("Failed to build Geney files.")
+                    printToLog("Failed to build Geney files", pr)
 
     except Exception as e:
         pr.status = 'Error'
@@ -213,6 +222,7 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
 
     for tsv_file in tsv_files:
         prefix = tsv_file.replace(".tsv", "")
+        prefixes.append(prefix)
         tsv_map_dir = "{}.mp".format(prefix)
 
         shutil.rmtree(tsv_map_dir, ignore_errors=True)
@@ -220,6 +230,12 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         tsv_map_dirs.append(tsv_map_dir)
 
     merged_file = os.path.join(geney_dataset_path, "data.tsv")
+#    printToLog("tsv_files:", pr)
+#    printToLog(",".join(tsv_files), pr)
+#    printToLog("tsv_map_dirs:", pr)
+#    printToLog(",".join(tsv_map_dirs), pr)
+#    printToLog("prefixes:", pr)
+#    printToLog(",".join(prefixes), pr)
     merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
 
 #    for i in range(len(tsv_files)):
@@ -232,10 +248,10 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     merged_transposed_file = os.path.join(geney_dataset_path, "transposed.tsv")
     merged_transposed_temp_dir = os.path.join(geney_dataset_path, "transposed.temp")
 
-    transpose_tsv(merged_file, merged_map_dir, merged_transposed_file, merged_transpose_temp_dir, False, False, 500000000)
+    transpose_tsv(merged_file, merged_map_dir, merged_transposed_file, merged_transposed_temp_dir, False, False, 500000000)
 
     merged_transposed_map_dir = os.path.join(geney_dataset_path, "transposed.mp")
-    map_tsv(transposed_tsv_file, transposed_tsv_map_dir)
+    map_tsv(merged_transposed_file, merged_transposed_map_dir)
 
 #    for f in data_files:
 #        group_name = f.rstrip('.tsv')

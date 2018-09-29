@@ -84,7 +84,7 @@ def open_msgpack(file_path, mode, store_data=None):
         else:
             raise ValueError("`mode` must be either 'rb' or 'wb'")
 
-def map_tsv(in_file_path, output_dir, is_gzipped):
+def map_tsv(in_file_path, output_dir, is_gzipped=False):
     """Map TSV using dictionary to be saved to MessagePack to hold position in file and length of data for sample
 
     Args:

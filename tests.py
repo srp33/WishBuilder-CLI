@@ -43,7 +43,7 @@ def test_folder(pr: PullRequest):
             report += RED_X + '\t' + path + ' is too large ( ' + str(int(os.path.getsize(path) / 1048576)) + 'MB; max size: 1MB)\n\n'
             passed = False
 
-    invalid_file_list = [x for x in file_list if not x.startswith("test_") and x.endswith(".tsv")]
+    invalid_file_list = [x for x in file_list if os.path.basename(x).endswith(".tsv") and not os.path.basename(x).startswith("test_")]
     if len(invalid_file_list) > 0:
         for f in invalid_file_list:
             report += '{0}\t A file called {1} is not allowed in the directory.\n\n'.format(RED_X, f)

@@ -82,7 +82,7 @@ def compare_files(data_file_list, test_file_list, pr):
         with open(data_file_path, 'r') as data_file:
             report += create_html_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, data_file_path)
 
-            data_header = data_file.readline().decode().rstrip('\n').split('\t')
+            data_header = data_file.readline().rstrip('\n').split('\t')
 
             # Make sure column headers are unique in data file
             unique_variables = []
@@ -103,7 +103,7 @@ def compare_files(data_file_list, test_file_list, pr):
             # PARSING THROUGH DATA FILE
             samples_tested = set()
             for line in data_file:
-                data_items = line.decode().rstrip('\n').split('\t')
+                data_items = line.rstrip('\n').split('\t')
                 sample = data_items[0]
                 unique_samples.add(sample)
                 samples_tested.add(sample)
@@ -153,7 +153,7 @@ def create_html_table(columns, rows, file_path):
     with open(file_path, 'r') as inFile:
         for i in range(rows):
             table += "\t<tr align='left'>\n"
-            line = inFile.readline().decode().rstrip('\n').split('\t')
+            line = inFile.readline().rstrip('\n').split('\t')
             if len(line) < columns:
                 columns = len(line)
             for j in range(columns):

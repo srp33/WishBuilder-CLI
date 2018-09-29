@@ -91,8 +91,6 @@ def test(pr: PullRequest, sql_dao):
 
             data_dir = "{}/{}".format(test_dir, pr.branch)
             test_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.startswith("test_") and x.endswith(".tsv")]
-            print(test_file_paths)
-            sys.exit(1)
 
             if len(test_file_paths) == 0:
                 passed = False
@@ -106,7 +104,7 @@ def test(pr: PullRequest, sql_dao):
 
             # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
             if test_scripts(pr):
-                tsv_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".tsv")]
+                tsv_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if not x.startswith("test_") and  x.endswith(".tsv")]
 
                 tsv_passed = test_tsv(pr, tsv_file_paths)
                 data_passed = check_test_for_every_data(pr, tsv_file_paths, test_file_paths)

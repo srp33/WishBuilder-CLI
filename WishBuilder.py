@@ -10,6 +10,7 @@ from Constants import *
 from Shared import *
 from capturer import CaptureOutput
 from FastFileHelper import *
+import ColumnInfo
 
 def setup():
     os.chdir(WB_DIRECTORY)
@@ -255,7 +256,7 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     map_tsv(merged_transposed_file, merged_transposed_map_dir)
 
     save_description(pr, test_dir, os.path.join(geney_dataset_path, DESCRIPTION_FILE_NAME))
-    #save_metadata(merged_file, os.path.join(geney_dataset_path, 'metadata.pkl'))
+    save_metadata(merged_file, os.path.join(geney_dataset_path, 'metadata.pkl'))
 
     os.chdir(cwd)
 
@@ -302,6 +303,28 @@ def save_metadata(data_file, out_file):
     metadata = {'meta': meta}
     with open(out_file, 'wb') as fp:
         pickle.dump(metadata, fp)
+
+def get_all_columns_info(self):
+    """
+    Retrieves the column name, data type, and all unique values from every column in a file
+    :return: Name, data type (continuous/discrete), and unique values from every column
+    :rtype: dictionary where key: column name and value:ColumnInfo object containing the column name, data type (continuous/discrete), and unique values from all columns
+    """
+    df = self.input_file.read_input_to_pandas()
+    columnDict = {}
+
+    for col in df:
+	uniqueValues = df[col].unique().tolist()
+
+	i = 0
+	while uniqueValues[i] == None:
+            i += 1
+	if isinstance(uniqueValues[i], str) or isinstance(uniqueValues[i], bool):
+            columnDict[col] = ColumnInfo.ColumnInfo(col, "discrete", uniqueValues)
+	else:
+            columnDict[col] = ColumnInfo.ColumnInfo(col, "continuous", uniqueValues)
+
+    return columnDict
 
 def send_report(pr):
     #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='hillkimball@gmail.com')

@@ -100,7 +100,7 @@ class PullRequest:
             passed = False
         if not self.report.pass_file_test:
             passed = False
-        if not self.report.pass_gzip_test:
+        if not self.report.pass_tsv_test:
             passed = False
         if not self.report.pass_script_test:
             passed = False

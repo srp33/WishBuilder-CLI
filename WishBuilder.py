@@ -91,6 +91,8 @@ def test(pr: PullRequest, sql_dao):
 
             data_dir = "{}/{}".format(test_dir, pr.branch)
             test_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.startswith("test_") and x.endswith(".tsv")]
+            print(test_file_paths)
+            sys.exit(1)
 
             if len(test_file_paths) == 0:
                 passed = False
@@ -104,16 +106,16 @@ def test(pr: PullRequest, sql_dao):
 
             # if this test doesn't pass, it is pointless to move on, because the output files will be wrong
             if test_scripts(pr):
-                gz_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".gz")]
+                tsv_file_paths = [data_dir + "/" + x for x in os.listdir(data_dir) if x.endswith(".tsv")]
 
-                gzip_passed = test_gzip(pr, gz_file_paths)
-                data_passed = check_test_for_every_data(pr, gz_file_paths, test_file_paths)
+                tsv_passed = test_tsv(pr, tsv_file_paths)
+                data_passed = check_test_for_every_data(pr, tsv_file_paths, test_file_paths)
 
-                if gzip_passed and data_passed:
+                if tsv_passed and data_passed:
                     shutil.rmtree(raw_data_storage, ignore_errors=True)
                     os.mkdir(raw_data_storage)
 
-                    for f in gz_file_paths:
+                    for f in tsv_file_paths:
                         os.system('mv {} {}/'.format(f, raw_data_storage))
 
             pr.time_elapsed = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time() - start))
@@ -273,6 +275,7 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     os.chdir(cwd)
 
     #TODO: This is temporary
+    printToLog("Successfully saved Geney files")
     return False
 
 def get_metadata(data_file, out_file):

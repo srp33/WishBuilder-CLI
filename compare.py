@@ -1,22 +1,22 @@
-import gzip, os, sys
+import os, sys
 from Constants import *
 import pandas as pd
 from PullRequest import PullRequest
 from Shared import *
 
 def get_test_file_path(data_file_path):
-    return os.path.dirname(data_file_path) + '/test_' + os.path.basename(data_file_path).rstrip('.gz')
+    return os.path.dirname(data_file_path) + '/test_' + os.path.basename(data_file_path)
 
 def get_data_file_path(test_file_path):
-    return os.path.dirname(test_file_path) + "/" + os.path.basename(test_file_path).lstrip("test_") + ".gz"
+    return os.path.dirname(test_file_path) + "/" + os.path.basename(test_file_path).lstrip("test_")
 
 # Check if there is a test file for every data file
-def check_test_for_every_data(pr: PullRequest, gz_file_paths, test_file_paths):
+def check_test_for_every_data(pr: PullRequest, tsv_file_paths, test_file_paths):
     printToLog("Running check_test_for_every_data", pr)
     report = "### Testing files:\n\n"
     passed = True
 
-    for f in gz_file_paths:
+    for f in tsv_file_paths:
         test_file_path = get_test_file_path(f)
 
         if not os.path.exists(test_file_path):
@@ -39,7 +39,7 @@ def check_test_for_every_data(pr: PullRequest, gz_file_paths, test_file_paths):
     pr.report.key_test_report = report
 
     if passed:
-        report, passed, num_samples = compare_files(gz_file_paths, test_file_paths, pr)
+        report, passed, num_samples = compare_files(tsv_file_paths, test_file_paths, pr)
         pr.num_samples = num_samples
         pr.report.data_tests_report = report
         pr.report.pass_data_tests = passed
@@ -79,7 +79,7 @@ def compare_files(data_file_list, test_file_list, pr):
 
         report += "#### Comparing \"{0}\" and \"{1}\"\n\n".format(os.path.basename(data_file_path), os.path.basename(test_file_path))
 
-        with gzip.open(data_file_path, 'r') as data_file:
+        with open(data_file_path, 'r') as data_file:
             report += create_html_table(NUM_SAMPLE_COLUMNS, NUM_SAMPLE_ROWS, data_file_path)
 
             data_header = data_file.readline().decode().rstrip('\n').split('\t')
@@ -150,7 +150,7 @@ def compare_files(data_file_list, test_file_list, pr):
 def create_html_table(columns, rows, file_path):
     table = '\n### First ' + str(columns) + ' columns and ' + str(rows) + ' rows of ' + file_path + ':\n\n'
     table += '<table style="width:100%; border: 1px solid black;">\n'
-    with gzip.open(file_path, 'r') as inFile:
+    with open(file_path, 'r') as inFile:
         for i in range(rows):
             table += "\t<tr align='left'>\n"
             line = inFile.readline().decode().rstrip('\n').split('\t')

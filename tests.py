@@ -1,4 +1,4 @@
-import gzip, os, os.path, re, subprocess, yaml
+import os, os.path, re, subprocess, yaml
 from yaml.scanner import ScannerError
 from Constants import *
 from PullRequest import PullRequest
@@ -149,8 +149,6 @@ def test_files(pr: PullRequest):
 def check_test_files(test_file_list, pr):
     printToLog("Running check_test_files", pr)
 
-    min_samples = MIN_SAMPLES
-    min_test_cases = MIN_TEST_CASES
     report = ''
     passed = True
 
@@ -191,9 +189,9 @@ def check_test_files(test_file_list, pr):
                         if data[1] + data[2] not in samples[data[0]]:
                             samples[data[0]].append(data[1] + data[2])
 
-        if len(samples.keys()) < min_samples:  # Make sure there are enough unique sample IDs to test
+        if len(samples.keys()) < MIN_SAMPLES:  # Make sure there are enough unique sample IDs to test
             report += "{red_x}\t\"{0}\" does not contain enough unique samples to test (min: {1})\n\n"\
-                .format(os.path.basename(f), min_samples, red_x=RED_X)
+                .format(os.path.basename(f), MIN_SAMPLES, red_x=RED_X)
             passed = False
         else:
             report += "{check_mark}\t\"{0}\" contains enough unique samples to test\n\n"\
@@ -212,16 +210,16 @@ def check_test_files(test_file_list, pr):
         if row_count == 0:  # Check if file is empty
             report += "{red_x}\t\"{0}\" is empty.\n\n".format(f, red_x=RED_X)
             passed = False
-        elif row_count < min_test_cases:  # Check if there are enough test cases
+        elif row_count < MIN_TEST_CASES:  # Check if there are enough test cases
             report += "{red_x}\t\"{0}\" does not contain enough test cases ({1}; min: {2})\n\n"\
-                .format(os.path.basename(f), row_count, min_test_cases, red_x=RED_X)
+                .format(os.path.basename(f), row_count, MIN_TEST_CASES, red_x=RED_X)
             passed = False
         else:
             report += "{check_mark}\t\"{0}\" contains enough test cases ({1}; min: {2})\n\n"\
-                .format(os.path.basename(f), row_count, min_test_cases, check_mark=CHECK_MARK)
+                .format(os.path.basename(f), row_count, MIN_TEST_CASES, check_mark=CHECK_MARK)
 
-    r, passed = check_test_files(test_file_list, pr)
-    report += r
+#    r, passed = check_test_files(test_file_list, pr)
+#    report += r
 
     if passed:
         report += "#### Results: PASS\n---\n"
@@ -293,33 +291,33 @@ def test_scripts(pr: PullRequest):
 
     return passed
 
-def test_gzip(pr: PullRequest, gz_file_paths):
+def test_tsv(pr: PullRequest, tsv_file_paths):
     passed = True
-    report = '\n### Testing gzip files:\n\n'
+    report = '\n### Testing tsv files:\n\n'
 
-    printToLog('Testing - test_gzip', pr)
+    printToLog('Testing - test_tsv', pr)
 
-    if len(gz_file_paths) == 0:
-        report += RED_X + '\tNo gzip files exist.\n\n'
+    if len(tsv_file_paths) == 0:
+        report += RED_X + '\tNo tsv files exist.\n\n'
         passed = False
-    else:
-        for file_path in gz_file_paths:
-            file_type = str(subprocess.check_output(['file', '-b', file_path]))
-
-            if re.search(r"gzip compressed data", file_type):
-                report += CHECK_MARK + '\t' + os.path.basename(file_path) + ' was created and zipped correctly.\n\n'
-            else:
-                report += RED_X + '\t' + os.path.basename(file_path) + ' exists, but was not zipped correctly (' + file_type.decode() + ').\n\n'
-                passed = False
+#    else:
+#        for file_path in tsv_file_paths:
+#            file_type = str(subprocess.check_output(['file', '-b', file_path]))
+#
+#            if re.search(r"gzip compressed data", file_type):
+#                report += CHECK_MARK + '\t' + os.path.basename(file_path) + ' was created and zipped correctly.\n\n'
+#            else:
+#                report += RED_X + '\t' + os.path.basename(file_path) + ' exists, but was not zipped correctly (' + file_type.decode() + ').\n\n'
+#                passed = False
 
     if passed:
         report += '#### Results: PASS\n---\n'
-        printToLog('PASS - test_gzip', pr)
+        printToLog('PASS - test_tsv', pr)
     else:
         report += '#### Results: **<font color=\"red\">FAIL</font>**\n---\n'
-        printToLog('FAIL - test_gzip', pr)
+        printToLog('FAIL - test_tsv', pr)
 
-    pr.report.pass_gzip_test = passed
-    pr.report.gzip_test_report = report
+    pr.report.pass_tsv_test = passed
+    pr.report.tsv_test_report = report
 
     return passed

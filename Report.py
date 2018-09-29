@@ -20,8 +20,8 @@ class Report:
             self.pass_file_test = False
             self.file_test_report = ''
 
-            self.pass_gzip_test = False
-            self.gzip_test_report = ''
+            self.pass_tsv_test = False
+            self.tsv_test_report = ''
 
             # Run User Scripts
             self.pass_script_test = False
@@ -62,8 +62,8 @@ class Report:
             self.pass_file_test = report_dict['pass_file_test']
             self.file_test_report = report_dict['file_test_report']
 
-            self.pass_gzip_test = report_dict['pass_gzip_test']
-            self.gzip_test_report = report_dict['gzip_test_report']
+            self.pass_tsv_test = report_dict['pass_tsv_test']
+            self.tsv_test_report = report_dict['tsv_test_report']
 
             # Run User Scripts
             self.pass_script_test = report_dict['pass_script_test']
@@ -98,7 +98,7 @@ class Report:
             out += self.configuration_test_report
             out += self.file_test_report
             out += self.script_test_report
-            out += self.gzip_test_report
+            out += self.tsv_test_report
             out += self.key_test_report
             out += self.meta_data_preview
             out += self.data_preview

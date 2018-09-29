@@ -1,4 +1,4 @@
-import json, logging, os, pickle, psutil, shutil, sys, time, inspect
+import glob, json, logging, os, pickle, psutil, shutil, sys, time, inspect
 from compare import *
 from multiprocessing import Process
 from GithubDao import GithubDao
@@ -9,6 +9,7 @@ from tests import *
 from Constants import *
 from Shared import *
 from capturer import CaptureOutput
+from FastFileHelper import *
 
 def setup():
     os.chdir(WB_DIRECTORY)
@@ -122,8 +123,11 @@ def test(pr: PullRequest, sql_dao):
             sql_dao.update(pr)
 
             if pr.passed:
-                convert_to_parquet(pr, test_dir, raw_data_storage)
-                git_dao.merge(pr)
+                if build_geney_files(pr, test_dir, raw_data_storage):
+                    git_dao.merge(pr)
+                else:
+                    printToLog("Failed to build Geney files.")
+
     except Exception as e:
         pr.status = 'Error'
         pr.passed = False
@@ -139,52 +143,137 @@ def test(pr: PullRequest, sql_dao):
     shutil.rmtree(raw_data_storage, ignore_errors=True)
     print("Done")
 
-def convert_to_parquet(pr: PullRequest, test_dir, raw_data_storage):
-    printToLog("Building parquet file(s)", pr)
+#def convert_to_parquet(pr: PullRequest, test_dir, raw_data_storage):
+#    printToLog("Building parquet file(s)", pr)
+#
+#    cwd = os.getcwd()
+#    os.chdir(raw_data_storage)
+#
+#    geney_dataset_path = os.path.join(GENEY_DATA_LOCATION, pr.branch)
+#    shutil.rmtree(geney_dataset_path, ignore_errors=True)
+#    os.mkdir(geney_dataset_path)
+#    data_files = os.listdir('./')
+#
+#    groups = {}
+#    for f in data_files:
+#        group_name = f.rstrip('.gz').rstrip('.tsv')
+#        with gzip.open(f) as fp:
+#            with gzip.open('tmp.tsv.gz', 'w') as fp_out:
+#                columns = fp.readline().decode().rstrip('\n').split('\t')
+#                groups[group_name] = [columns[0]]
+#                for column in columns[1:]:
+#                    option = '{}_{}'.format(group_name, column)
+#                    groups[group_name].append(option)
+#                fp_out.write('\t'.join(groups[group_name]).encode())
+#                fp_out.write('\n'.encode())
+#                for line in fp:
+#                    fp_out.write(line)
+#                groups[group_name].remove(columns[0])
+#        os.remove(f)
+#        shutil.move('tmp.tsv.gz', f)
+#
+#    num_features = 0
+#    for group in groups:
+#        num_features += len(groups[group])
+#
+#    pr.feature_variables = num_features
+#    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
+#        json.dump(groups, fp_groups)
+#
+#    data_path = os.path.join(geney_dataset_path, 'data.pq')
+#    ss = ShapeShifter.ShapeShifter(data_files[0])
+#    ss.merge_files(data_files[1:], data_path, 'parquet')
+#
+#    get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
+#
+#    get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
+#
+#    os.chdir(cwd)
+
+def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
+    printToLog("Building files for use in Geney", pr)
 
     cwd = os.getcwd()
     os.chdir(raw_data_storage)
 
     geney_dataset_path = os.path.join(GENEY_DATA_LOCATION, pr.branch)
-    shutil.rmtree(geney_dataset_path, ignore_errors=True)
-    os.mkdir(geney_dataset_path)
-    data_files = os.listdir('./')
+    #TODO: Uncomment this and remove if clause
+    #shutil.rmtree(geney_dataset_path, ignore_errors=True)
+    if not os.path.exists(geney_dataset_path):
+        os.mkdir(geney_dataset_path)
 
-    groups = {}
-    for f in data_files:
-        group_name = f.rstrip('.gz').rstrip('.tsv')
-        with gzip.open(f) as fp:
-            with gzip.open('tmp.tsv.gz', 'w') as fp_out:
-                columns = fp.readline().decode().rstrip('\n').split('\t')
-                groups[group_name] = [columns[0]]
-                for column in columns[1:]:
-                    option = '{}_{}'.format(group_name, column)
-                    groups[group_name].append(option)
-                fp_out.write('\t'.join(groups[group_name]).encode())
-                fp_out.write('\n'.encode())
-                for line in fp:
-                    fp_out.write(line)
-                groups[group_name].remove(columns[0])
-        os.remove(f)
-        shutil.move('tmp.tsv.gz', f)
+    tsv_files = glob.glob("*.tsv")
 
-    num_features = 0
-    for group in groups:
-        num_features += len(groups[group])
+    if len(tsv_files) == 0:
+        printToLog("No .tsv file could be found in {}.".format(raw_data_storage))
+        return False
 
-    pr.feature_variables = num_features
-    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
-        json.dump(groups, fp_groups)
+    prefixes = []
+    tsv_map_dirs = []
 
-    data_path = os.path.join(geney_dataset_path, 'data.pq')
-    ss = ShapeShifter.ShapeShifter(data_files[0])
-    ss.merge_files(data_files[1:], data_path, 'parquet')
+    for tsv_file in tsv_files:
+        prefix = tsv_file.replace(".tsv", "")
+        tsv_map_dir = "{}.mp".format(prefix)
 
-    get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
+        shutil.rmtree(tsv_map_dir, ignore_errors=True)
+        map_tsv(tsv_file, tsv_map_dir)
+        tsv_map_dirs.append(tsv_map_dir)
 
-    get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
+    merged_file = os.path.join(geney_dataset_path, "data.tsv")
+    merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
+
+#    for i in range(len(tsv_files)):
+#        os.remove(tsv_files[i])
+#        shutil.rmtree(tsv_map_dirs[i], ignore_errors=True)
+
+    merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
+    map_tsv(merged_file, merged_map_dir)
+
+    merged_transposed_file = os.path.join(geney_dataset_path, "transposed.tsv")
+    merged_transposed_temp_dir = os.path.join(geney_dataset_path, "transposed.temp")
+
+    transpose_tsv(merged_file, merged_map_dir, merged_transposed_file, merged_transpose_temp_dir, False, False, 500000000)
+
+    merged_transposed_map_dir = os.path.join(geney_dataset_path, "transposed.mp")
+    map_tsv(transposed_tsv_file, transposed_tsv_map_dir)
+
+#    for f in data_files:
+#        group_name = f.rstrip('.tsv')
+#        with gzip.open(f) as fp:
+#            with gzip.open('tmp.tsv.gz', 'w') as fp_out:
+#                columns = fp.readline().decode().rstrip('\n').split('\t')
+#                groups[group_name] = [columns[0]]
+#                for column in columns[1:]:
+#                    option = '{}_{}'.format(group_name, column)
+#                    groups[group_name].append(option)
+#                fp_out.write('\t'.join(groups[group_name]).encode())
+#                fp_out.write('\n'.encode())
+#                for line in fp:
+#                    fp_out.write(line)
+#                groups[group_name].remove(columns[0])
+#        os.remove(f)
+#        shutil.move('tmp.tsv.gz', f)
+
+#    num_features = 0
+#    for group in groups:
+#        num_features += len(groups[group])
+
+#    pr.feature_variables = num_features
+#    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
+#        json.dump(groups, fp_groups)
+
+#    data_path = os.path.join(geney_dataset_path, 'data.pq')
+#    ss = ShapeShifter.ShapeShifter(data_files[0])
+#    ss.merge_files(data_files[1:], data_path, 'parquet')
+
+#    get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
+
+#    get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
 
     os.chdir(cwd)
+
+    #TODO: This is temporary
+    return False
 
 def get_metadata(data_file, out_file):
     ss = ShapeShifter.ShapeShifter(data_file)

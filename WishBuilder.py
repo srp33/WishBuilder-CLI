@@ -10,6 +10,8 @@ from Constants import *
 from Shared import *
 from capturer import CaptureOutput
 from FastFileHelper import *
+import msgpack
+from fastnumbers import isreal
 import ColumnInfo
 
 def setup():
@@ -131,12 +133,12 @@ def test(pr: PullRequest, sql_dao):
             sql_dao.update(pr)
 
             if pr.passed:
-                printToLog("Building data files for Geney", pr)
-
                 if build_geney_files(pr, test_dir, raw_data_storage):
+                    printToLog("Successfully built Geney files", pr)
                     git_dao.merge(pr)
                 else:
                     printToLog("Failed to build Geney files", pr)
+                    pr.passed = False
 
     except Exception as e:
         pr.status = 'Error'
@@ -153,53 +155,6 @@ def test(pr: PullRequest, sql_dao):
     shutil.rmtree(raw_data_storage, ignore_errors=True)
     print("Done")
 
-#def convert_to_parquet(pr: PullRequest, test_dir, raw_data_storage):
-#    printToLog("Building parquet file(s)", pr)
-#
-#    cwd = os.getcwd()
-#    os.chdir(raw_data_storage)
-#
-#    geney_dataset_path = os.path.join(GENEY_DATA_LOCATION, pr.branch)
-#    shutil.rmtree(geney_dataset_path, ignore_errors=True)
-#    os.mkdir(geney_dataset_path)
-#    data_files = os.listdir('./')
-#
-#    groups = {}
-#    for f in data_files:
-#        group_name = f.rstrip('.gz').rstrip('.tsv')
-#        with gzip.open(f) as fp:
-#            with gzip.open('tmp.tsv.gz', 'w') as fp_out:
-#                columns = fp.readline().decode().rstrip('\n').split('\t')
-#                groups[group_name] = [columns[0]]
-#                for column in columns[1:]:
-#                    option = '{}_{}'.format(group_name, column)
-#                    groups[group_name].append(option)
-#                fp_out.write('\t'.join(groups[group_name]).encode())
-#                fp_out.write('\n'.encode())
-#                for line in fp:
-#                    fp_out.write(line)
-#                groups[group_name].remove(columns[0])
-#        os.remove(f)
-#        shutil.move('tmp.tsv.gz', f)
-#
-#    num_features = 0
-#    for group in groups:
-#        num_features += len(groups[group])
-#
-#    pr.feature_variables = num_features
-#    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
-#        json.dump(groups, fp_groups)
-#
-#    data_path = os.path.join(geney_dataset_path, 'data.pq')
-#    ss = ShapeShifter.ShapeShifter(data_files[0])
-#    ss.merge_files(data_files[1:], data_path, 'parquet')
-#
-#    get_metadata(data_path, os.path.join(geney_dataset_path, 'metadata.pkl'))
-#
-#    get_description(pr, test_dir, os.path.join(geney_dataset_path, 'description.json'))
-#
-#    os.chdir(cwd)
-
 def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     printToLog("Building files for use in Geney", pr)
 
@@ -207,15 +162,13 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     os.chdir(raw_data_storage)
 
     geney_dataset_path = os.path.join(GENEY_DATA_LOCATION, pr.branch)
-    #TODO: Uncomment this and remove if clause
-    #shutil.rmtree(geney_dataset_path, ignore_errors=True)
-    if not os.path.exists(geney_dataset_path):
-        os.mkdir(geney_dataset_path)
+    shutil.rmtree(geney_dataset_path, ignore_errors=True)
+    os.mkdir(geney_dataset_path)
 
     tsv_files = glob.glob("*.tsv")
 
     if len(tsv_files) == 0:
-        printToLog("No .tsv file could be found in {}.".format(raw_data_storage))
+        printToLog("No .tsv file could be found in {}.".format(raw_data_storage), pr)
         return False
 
     prefixes = []
@@ -255,16 +208,56 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     merged_transposed_map_dir = os.path.join(geney_dataset_path, "transposed.mp")
     map_tsv(merged_transposed_file, merged_transposed_map_dir)
 
+    save_metadata(pr, merged_transposed_file, merged_transposed_map_dir, os.path.join(geney_dataset_path, 'metadata.pkl'))
     save_description(pr, test_dir, os.path.join(geney_dataset_path, DESCRIPTION_FILE_NAME))
-    save_metadata(merged_file, os.path.join(geney_dataset_path, 'metadata.pkl'))
 
     os.chdir(cwd)
 
-    #TODO: This is temporary
-    #printToLog("Successfully saved Geney files")
-    return False
+    return True
+
+def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out_file):
+    printToLog("Saving metadata", pr)
+    # In the transposed file, samples are actually features
+    with open(os.path.join(transposed_map_dir, 'samples.msgpack'), 'rb') as samples_file:
+        features = msgpack.unpack(samples_file)
+
+    # Open the transposed data file so we can read feature values
+    with open(os.path.join(transposed_map_dir, 'sample_data.msgpack'), 'rb') as map_file:
+        data_map = msgpack.unpack(map_file)
+
+    meta_dict = {}
+
+    with open(transposed_data_file) as transposed_file:
+        for i in range(len(features)):
+            if i % 1000 == 0:
+                printToLog("{}".format(i), pr)
+
+            feature = features[i]
+            feature_coordinates = data_map[feature]
+            transposed_file.seek(feature_coordinates[0])
+
+            feature_values = [x for x in transposed_file.read(feature_coordinates[1]).split("\t") if x != "NA"]
+            feature_values = sorted(list(set(feature_values)))
+
+            if is_set_numeric(feature_values):
+                number_values = [float(x) for x in feature_values]
+                meta_dict[feature] = {'options': 'continuous', 'min': min(number_values), 'max': max(number_values)}
+            else:
+                meta_dict[feature] = {'options': feature_values, 'numOptions': len(feature_values)}
+
+    metadata = {'meta': meta_dict}
+    with open(out_file, 'wb') as fp:
+        pickle.dump(metadata, fp)
+
+def is_set_numeric(a_list):
+    for x in a_list:
+        if not isreal(x):
+            return False
+    return True
 
 def save_description(pr: PullRequest, test_dir, out_file):
+    printToLog("Saving description", pr)
+
     with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
         description = yaml.load(config_fp)
     with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
@@ -278,53 +271,6 @@ def save_description(pr: PullRequest, test_dir, out_file):
 
     with open(out_file, 'w') as out_fp:
         json.dump(description, out_fp)
-
-def save_metadata(data_file, out_file):
-    ss = ShapeShifter.ShapeShifter(data_file)
-    column_dict = ss.get_all_columns_info()
-    meta = {}
-
-    for column in column_dict.keys():
-        column_info = column_dict[column]
-        if column_info.dataType == 'continuous':
-            meta[column_info.name] = {
-                'options': 'continuous',
-                'min': min(column_info.uniqueValues),
-                'max': max(column_info.uniqueValues)
-            }
-        else:
-            options = column_info.uniqueValues
-            num_options = len(options)
-            meta[column_info.name] = {
-                'numOptions': num_options,
-                'options': options
-            }
-
-    metadata = {'meta': meta}
-    with open(out_file, 'wb') as fp:
-        pickle.dump(metadata, fp)
-
-def get_all_columns_info(self):
-    """
-    Retrieves the column name, data type, and all unique values from every column in a file
-    :return: Name, data type (continuous/discrete), and unique values from every column
-    :rtype: dictionary where key: column name and value:ColumnInfo object containing the column name, data type (continuous/discrete), and unique values from all columns
-    """
-    df = self.input_file.read_input_to_pandas()
-    columnDict = {}
-
-    for col in df:
-	uniqueValues = df[col].unique().tolist()
-
-	i = 0
-	while uniqueValues[i] == None:
-            i += 1
-	if isinstance(uniqueValues[i], str) or isinstance(uniqueValues[i], bool):
-            columnDict[col] = ColumnInfo.ColumnInfo(col, "discrete", uniqueValues)
-	else:
-            columnDict[col] = ColumnInfo.ColumnInfo(col, "continuous", uniqueValues)
-
-    return columnDict
 
 def send_report(pr):
     #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='hillkimball@gmail.com')

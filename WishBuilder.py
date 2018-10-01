@@ -213,6 +213,8 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
 
     os.chdir(cwd)
 
+    os.system("chmod 777 {} -R".format(geney_dataset_path))
+
     return True
 
 def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out_file):

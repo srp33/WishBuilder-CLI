@@ -7,15 +7,16 @@ import sys
 #import gzip as gz
 #import indexed_gzip as igz
 #import subprocess
+from Shared import *
 
-def smart_print(x):
-    """Print with current date and time
-
-    Args:
-        x: output to be printed
-    """
-    print("{} - {}".format(datetime.datetime.now(), x))
-    sys.stdout.flush()
+#def smart_print(x):
+#    """Print with current date and time
+#
+#    Args:
+#        x: output to be printed
+#    """
+#    print("{} - {}".format(datetime.datetime.now(), x))
+#    sys.stdout.flush()
 
 def reset_dict(my_dict):
     """Simple function to reset values of dictionary
@@ -79,7 +80,7 @@ def open_msgpack(file_path, mode, store_data=None):
             return msgpack.unpack(cur_file)
         elif mode == 'wb':
             if store_data is None:
-                smart_print("\033[91mWARNING:\033[0m No data given to pack")
+                printToLog("\033[91mWARNING:\033[0m No data given to pack")
             return msgpack.pack(store_data, cur_file)
         else:
             raise ValueError("`mode` must be either 'rb' or 'wb'")
@@ -120,7 +121,7 @@ def map_tsv(in_file_path, output_dir, is_gzipped=False):
         cur_pos = in_file.tell()
         for i, line in enumerate(in_file):
             if i > 0 and i % 50000 == 0:
-                smart_print(i)
+                printToLog(i)
 
             cur_len = len(line)
 
@@ -164,7 +165,7 @@ def increment_chunk_name(chunk_name, ix):
             chunk_name[ix] = 'A'
             return increment_chunk_name(chunk_name, ix - 1)
         else:
-            smart_print('\033[93mWARNING:\033[0m Reached chunk limit. Please refactor code to accept' +
+            printToLog('\033[93mWARNING:\033[0m Reached chunk limit. Please refactor code to accept' +
                         'more chunks.')
             sys.exit()
     else:
@@ -185,7 +186,7 @@ def write_dict(my_dict, out_dir, keys, chunk_name):
     if len(my_dict[keys[0]]) == 0:
         return
     if os.path.exists(out_path):
-        smart_print("\033[93mWOAH BUDDY\033[0m chunk number didn't increase")
+        printToLog("\033[93mWOAH BUDDY\033[0m chunk number didn't increase")
     else:
         with open(out_path, 'w') as out_file:
             for key in keys:
@@ -200,7 +201,7 @@ def consolidate_files(data_dir, out_path, features):
         out_path (str): Path to final file
         features (list): List of features to put there
     """
-    smart_print("Consolidating chunks")
+    printToLog("Consolidating chunks")
     for walk_tuple in os.walk(data_dir):
         file_names = walk_tuple[2]
         file_names = sorted(file_names)
@@ -243,8 +244,8 @@ def transpose_tsv(in_path, mpack_dir, out_path, data_dir,
 
     chunk_size, n_chunks = calculate_chunks(nrows, ncols, n_data_points)
 
-    smart_print(chunk_size)
-    smart_print(nrows)
+    printToLog(chunk_size)
+    printToLog(nrows)
 
     rows_perc_chunk = (chunk_size / nrows) * 100
     cur_percentage = 0
@@ -284,11 +285,11 @@ def transpose_tsv(in_path, mpack_dir, out_path, data_dir,
                     cur_percentage += rows_perc_chunk
 
                     ###############################################################
-                    smart_print("{}% rows done".format(math.trunc(cur_percentage)))
+                    printToLog("{}% rows done".format(math.trunc(cur_percentage)))
                     ###############################################################
 
         #############################
-        smart_print("100% rows done")
+        printToLog("100% rows done")
         #############################
 
         write_dict(feature_dict, data_dir, features, chunk_name)
@@ -298,7 +299,7 @@ def transpose_tsv(in_path, mpack_dir, out_path, data_dir,
             subprocess.check_call(['gzip', out_path])
     finally:
         shutil.rmtree(data_dir)
-        smart_print("Done")
+        printToLog("Done")
 
 def merge_tsv(file_paths, mp_paths, prefs, out_path, chunk):
     """Put those files together
@@ -353,7 +354,7 @@ def merge_tsv(file_paths, mp_paths, prefs, out_path, chunk):
         all_lines.append(output)
         output = ''
         if ix > 0 and ix % chunk == 0:
-            smart_print(ix)
+            printToLog(ix)
             out_file.write(''.join(all_lines))
             all_lines = []
 

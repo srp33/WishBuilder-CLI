@@ -238,22 +238,22 @@ def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out
 
             feature_values = [x for x in transposed_file.read(feature_coordinates[1]).split("\t") if x != "NA"]
             feature_values = sorted(list(set(feature_values)))
+            float_values = convert_to_floats(feature_values)
 
-            if is_set_numeric(feature_values):
-                number_values = [float(x) for x in feature_values]
-                meta_dict[feature] = {'options': 'continuous', 'min': min(number_values), 'max': max(number_values)}
-            else:
+            if not float_values:
                 meta_dict[feature] = {'options': feature_values, 'numOptions': len(feature_values)}
+            else:
+                meta_dict[feature] = {'options': 'continuous', 'min': min(float_values), 'max': max(float_values)}
 
     metadata = {'meta': meta_dict}
     with open(out_file, 'wb') as fp:
         pickle.dump(metadata, fp)
 
-def is_set_numeric(a_list):
-    for x in a_list:
-        if not isreal(x):
-            return False
-    return True
+def convert_to_floats(str_list):
+    try:
+        return [float(x) for x in str_list]
+    except:
+        return False
 
 def save_description(pr: PullRequest, test_dir, out_file):
     printToLog("Saving description", pr)

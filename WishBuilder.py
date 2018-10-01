@@ -238,12 +238,17 @@ def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out
 
             feature_values = [x for x in transposed_file.read(feature_coordinates[1]).split("\t") if x != "NA"]
             feature_values = sorted(list(set(feature_values)))
-            float_values = convert_to_floats(feature_values)
 
-            if not float_values:
-                meta_dict[feature] = {'options': feature_values, 'numOptions': len(feature_values)}
+            # Check whether we only had missing (NA) values
+            if len(feature_values) == 0:
+                meta_dict[feature] = {'options': ["NA"], 'numOptions': 1}
             else:
-                meta_dict[feature] = {'options': 'continuous', 'min': min(float_values), 'max': max(float_values)}
+                float_values = convert_to_floats(feature_values)
+
+                if not float_values:
+                    meta_dict[feature] = {'options': feature_values, 'numOptions': len(feature_values)}
+                else:
+                    meta_dict[feature] = {'options': 'continuous', 'min': min(float_values), 'max': max(float_values)}
 
     metadata = {'meta': meta_dict}
     with open(out_file, 'wb') as fp:

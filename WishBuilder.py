@@ -11,7 +11,6 @@ from Shared import *
 from capturer import CaptureOutput
 from FastFileHelper import *
 import msgpack
-from fastnumbers import isreal
 import ColumnInfo
 
 def setup():

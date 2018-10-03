@@ -185,10 +185,23 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         tsv_map_dirs.append(tsv_map_dir)
 
     merged_file = os.path.join(geney_dataset_path, "data.tsv")
+    merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
 
-    printToLog("Creating merged file {}".format(merged_file), pr)
-    feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
-    printToLog("Done creating merged file {}".format(merged_file), pr)
+    if len(tsv_files) == 1:
+        os.system("mv {} {}".format(tsv_files[0], merged_file))
+        os.system("mv {} {}".format(tsv_map_dirs[0], merged_map_dir))
+
+        features = [x.decode() for x in open_msgpack(os.path.join(merged_map_dir, 'features.msgpack'), 'rb')]
+        feature_dict = {tsv_map_dirs[0]: features}
+        num_features = len(features)
+    else:
+        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(tsv_files)), pr)
+        feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
+        printToLog("Done creating merged file {}".format(merged_file), pr)
+
+        printToLog("Creating fast-file map for {}".format(merged_file), pr)
+        map_tsv(merged_file, merged_map_dir)
+        printToLog("Done creating fast-file map for {}".format(merged_file), pr)
 
     pr.feature_variables = num_features
 
@@ -202,19 +215,14 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         json.dump(feature_dict2, fp_groups)
     printToLog("Done creating JSON file", pr)
 
-    merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
-    printToLog("Creating fast-file map for {}".format(merged_file), pr)
-    map_tsv(merged_file, merged_map_dir)
-    printToLog("Done creating fast-file map for {}".format(merged_file), pr)
-
     merged_transposed_file = os.path.join(geney_dataset_path, "transposed.tsv")
     merged_transposed_temp_dir = os.path.join(geney_dataset_path, "transposed.temp")
+    merged_transposed_map_dir = os.path.join(geney_dataset_path, "transposed.mp")
 
     printToLog("Creating transposed file {}".format(merged_transposed_file), pr)
     transpose_tsv(merged_file, merged_map_dir, merged_transposed_file, merged_transposed_temp_dir, False, False, 100000000)
     printToLog("Done creating transposed file {}".format(merged_transposed_file), pr)
 
-    merged_transposed_map_dir = os.path.join(geney_dataset_path, "transposed.mp")
     printToLog("Creating fast-file map for {}".format(merged_transposed_file), pr)
     map_tsv(merged_transposed_file, merged_transposed_map_dir)
     printToLog("Done creating fast-file map for {}".format(merged_transposed_file), pr)

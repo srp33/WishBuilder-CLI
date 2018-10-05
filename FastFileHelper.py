@@ -123,7 +123,7 @@ def map_tsv(in_file_path, output_dir, is_gzipped=False):
             if i > 0 and i % 50000 == 0:
                 printToLog(i)
 
-            cur_len = len(line)
+            cur_len = len(line.encode('utf-8'))
 
             if is_gzipped:
                 line = line.decode()
@@ -138,7 +138,8 @@ def map_tsv(in_file_path, output_dir, is_gzipped=False):
             cur_line_ix = line.index(data_starter) + 1
             start_ix = cur_line_ix + cur_pos
 
-            data_length = len(line.rstrip('\n').encode('utf-8')) - cur_line_ix
+            #data_length = len(line.rstrip('\n').encode('utf-8')) - cur_line_ix
+            data_length = len(line.rstrip('\n')) - cur_line_ix
 
             sample_data[sample] = (start_ix, data_length)
 

@@ -253,7 +253,7 @@ def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out
 
     with open(transposed_data_file) as transposed_file:
         for i in range(len(features)):
-            if i % 1000 == 0:
+            if i > 0 and i % 1000 == 0:
                 printToLog("{}".format(i), pr)
 
             feature = features[i]

@@ -63,8 +63,8 @@ def compare_files(data_file_list, test_file_list, pr):
                 test_data = line.rstrip('\n').split('\t')
 
                 if len(test_data) != 3:
-                    printToLog("Invalid test line in {}: {}".format(os.path.basename(test_file_path), test_data), pr)
-                    report += "{red_x}\tInvalid test line in {}: {}".format(os.path.basename(test_file_path), test_data) + "\n\n"
+                    printToLog("Invalid test line in {}: {}".format(os.path.basename(test_file_path), str(test_data)), pr)
+                    report += "{red_x}\tInvalid test line in {}: {}".format(os.path.basename(test_file_path), str(test_data)) + "\n\n"
                     passed = False
                     continue
 
@@ -151,7 +151,7 @@ def create_html_table(columns, rows, file_path):
     table = '\n### First ' + str(columns) + ' columns and ' + str(rows) + ' rows of ' + file_path + ':\n\n'
     table += '<table style="width:100%; border: 1px solid black;">\n'
     print("Creating HTML table from {}".format(file_path))
-    os.system("cp -v {} /tmp/{}".format(file_path, os.path.basename(file_path)))
+    os.system("cp -v {} /Shared/GeneyDatasets/{}".format(file_path, os.path.basename(file_path)))
     with open(file_path, 'r') as inFile:
         for i in range(rows):
             table += "\t<tr align='left'>\n"

@@ -350,8 +350,7 @@ def merge_tsv(file_paths, mp_paths, prefs, out_path, chunk):
                 output = ''.join([output, cur_line])
             else:
                 output += '\t'.join(["NA"] * (len(mp_features[mp_dir]) - 1)) + '\t'
-        output = output.rstrip('\t')
-        output += '\n'
+        output = output.rstrip('\t') + '\n'
         all_lines.append(output)
         output = ''
         if ix > 0 and ix % chunk == 0:

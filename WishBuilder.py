@@ -3,15 +3,12 @@ from compare import *
 from multiprocessing import Process
 from GithubDao import GithubDao
 from SqliteDao import SqliteDao
-#sys.path.insert(0, '/ShapeShifter')
-#import shapeshifter
 from tests import *
 from Constants import *
 from Shared import *
 from capturer import CaptureOutput
 from FastFileHelper import *
 import msgpack
-#import ColumnInfo
 
 def setup():
     os.chdir(WB_DIRECTORY)
@@ -191,13 +188,16 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         os.system("mv {} {}".format(tsv_files[0], merged_file))
         os.system("mv {} {}".format(tsv_map_dirs[0], merged_map_dir))
 
-        features = [x.decode() for x in open_msgpack(os.path.join(merged_map_dir, 'features.msgpack'), 'rb')]
+        features = [x.decode() for x in open_msgpack(os.path.join(merged_map_dir, 'features.msgpack'), 'rb') if x.decode() != "Sample"]
         feature_dict = {tsv_map_dirs[0]: features}
         num_features = len(features)
     else:
         printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(tsv_files)), pr)
         feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
         printToLog("Done creating merged file {}".format(merged_file), pr)
+
+        for key, value in feature_dict:
+            feature_dict[key] = [x for x in value if not x.endswith("__Sample")]
 
         printToLog("Creating fast-file map for {}".format(merged_file), pr)
         map_tsv(merged_file, merged_map_dir)

@@ -3,15 +3,15 @@ from compare import *
 from multiprocessing import Process
 from GithubDao import GithubDao
 from SqliteDao import SqliteDao
-sys.path.insert(0, '/ShapeShifter')
-import ShapeShifter
+#sys.path.insert(0, '/ShapeShifter')
+#import shapeshifter
 from tests import *
 from Constants import *
 from Shared import *
 from capturer import CaptureOutput
 from FastFileHelper import *
 import msgpack
-import ColumnInfo
+#import ColumnInfo
 
 def setup():
     os.chdir(WB_DIRECTORY)

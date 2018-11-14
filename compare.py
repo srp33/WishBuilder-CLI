@@ -63,8 +63,8 @@ def compare_files(data_file_list, test_file_list, pr):
                 test_data = line.rstrip('\n').split('\t')
 
                 if len(test_data) != 3:
-                    printToLog("Invalid test line in {}: {}".format(os.path.basename(test_file_path), str(test_data)), pr)
-                    report += "{red_x}\tInvalid test line in {}: {}".format(os.path.basename(test_file_path), str(test_data)) + "\n\n"
+                    printToLog("Invalid test line in {}: {}".format(os.path.basename(test_file_path), line.rstrip("\n")), pr)
+                    report += "{}\tInvalid test line in {}: {}".format(RED_X, os.path.basename(test_file_path), line.rstrip("\n")) + "\n\n"
                     passed = False
                     continue
 

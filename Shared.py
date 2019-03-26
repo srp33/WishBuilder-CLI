@@ -1,4 +1,4 @@
-import datetime, os, subprocess, sys
+import datetime, os, os.path, subprocess, sys
 from Constants import *
 from Shared import *
 
@@ -41,3 +41,6 @@ def get_files(directory: str) -> []:
         else:
             files.append(file)
     return files
+
+def parse_file_ext(file_path):
+    return os.path.splitext(file_path)[1]

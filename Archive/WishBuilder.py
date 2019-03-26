@@ -6,11 +6,8 @@ from SqliteDao import SqliteDao
 from tests import *
 from Constants import *
 from Shared import *
-from FixedWidthHelper import *
 from capturer import CaptureOutput
 import msgpack
-from yaml import load
-from yaml import FullLoader
 
 def setup():
     os.chdir(WB_DIRECTORY)
@@ -169,60 +166,43 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         printToLog("No .tsv file could be found in {}.".format(raw_data_storage), pr)
         return False
 
-#    prefixes = []
-#    tsv_map_dirs = []
-    fwf_files = []
+    prefixes = []
+    tsv_map_dirs = []
 
     for tsv_file in tsv_files:
-#        prefix = tsv_file.replace(".tsv", "")
-#        prefixes.append(prefix)
-#        tsv_map_dir = "{}.mp".format(prefix)
-        fwf_file = tsv_file.replace(parse_file_ext(tsv_file), ".fwf")
-        fwf_files.append(fwf_files)
+        prefix = tsv_file.replace(".tsv", "")
+        prefixes.append(prefix)
+        tsv_map_dir = "{}.mp".format(prefix)
 
-#        shutil.rmtree(tsv_map_dir, ignore_errors=True)
-#        printToLog("Creating fast-file map for {}".format(tsv_file), pr)
-#        map_tsv(tsv_file, tsv_map_dir)
-        printToLog("Creating fixed-width file for {}".format(tsv_file), pr)
-        convert_tsv_to_fwf(tsv_file, fwf_file)
-        os.remove(tsv_file)
+        shutil.rmtree(tsv_map_dir, ignore_errors=True)
+        printToLog("Creating fast-file map for {}".format(tsv_file), pr)
+        map_tsv(tsv_file, tsv_map_dir)
+        printToLog("Done creating fast-file map for {}".format(tsv_file), pr)
+        tsv_map_dirs.append(tsv_map_dir)
 
-        printToLog("Done creating fixed-width file for {}".format(tsv_file), pr)
-#        tsv_map_dirs.append(tsv_map_dir)
+    merged_file = os.path.join(geney_dataset_path, "data.tsv")
+    merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
 
-#    merged_file = os.path.join(geney_dataset_path, "data.tsv")
-#    merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
-    merged_file = os.path.join(geney_dataset_path, "data.fwf")
+    if len(tsv_files) == 1:
+        os.system("mv {} {}".format(tsv_files[0], merged_file))
+        os.system("mv {} {}".format(tsv_map_dirs[0], merged_map_dir))
 
-    if len(fwf_files) == 1:
-        os.system("mv {} {}".format(fwf_files[0], merged_file))
-        for f in glob.glob("{}.*".format(fwf_files[0])):
-            os.system("mv {} {}{}".format(f, merged_file, parse_file_ext(f)))
-#        os.system("mv {} {}".format(tsv_map_dirs[0], merged_map_dir))
-
-#        features = [x.decode() for x in open_msgpack(os.path.join(merged_map_dir, 'features.msgpack'), 'rb') if x.decode() != "Sample"]
-#        feature_dict = {tsv_map_dirs[0]: features}
-#        num_features = len(features)
+        features = [x.decode() for x in open_msgpack(os.path.join(merged_map_dir, 'features.msgpack'), 'rb') if x.decode() != "Sample"]
+        feature_dict = {tsv_map_dirs[0]: features}
+        num_features = len(features)
     else:
-        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
-        merge_fwf_files(fwf_files, merged_file)
-        printToLog("Done creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
+        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(tsv_files)), pr)
+        feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
+        printToLog("Done creating merged file {}".format(merged_file), pr)
 
-#        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(tsv_files)), pr)
-#        feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)
-#        printToLog("Done creating merged file {}".format(merged_file), pr)
+        for key, value in feature_dict:
+            feature_dict[key] = [x for x in value if not x.endswith("__Sample")]
 
-#        for key, value in feature_dict:
-#            feature_dict[key] = [x for x in value if not x.endswith("__Sample")]
+        printToLog("Creating fast-file map for {}".format(merged_file), pr)
+        map_tsv(merged_file, merged_map_dir)
+        printToLog("Done creating fast-file map for {}".format(merged_file), pr)
 
-#        printToLog("Creating fast-file map for {}".format(merged_file), pr)
-#        map_tsv(merged_file, merged_map_dir)
-#        printToLog("Done creating fast-file map for {}".format(merged_file), pr)
-
-#    pr.feature_variables = num_features
-
-    printToLog("Got to here!!")
-    sys.exit(1)
+    pr.feature_variables = num_features
 
     printToLog("Creating JSON file", pr)
     with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
@@ -307,7 +287,7 @@ def save_description(pr: PullRequest, test_dir, out_file):
     printToLog("Saving description", pr)
 
     with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
-        description = load(config_fp, Loader=FullLoader)
+        description = yaml.load(config_fp)
     with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
         md = description_fp.read()
 

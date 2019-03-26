@@ -1,8 +1,10 @@
-import os, os.path, re, subprocess, yaml
-from yaml.scanner import ScannerError
+import os, os.path, re, subprocess
 from Constants import *
 from PullRequest import PullRequest
 from Shared import *
+from yaml.scanner import ScannerError
+from yaml import load
+from yaml import FullLoader
 
 def check_changed_files(changed_files, pr):
     report = ""
@@ -72,7 +74,7 @@ def test_config(pr: PullRequest):
     if os.path.exists(config_path):
         with open(config_path, 'r') as stream:
             try:
-                configs = yaml.load(stream)
+                configs = load(stream, Loader=FullLoader)
                 for config in REQUIRED_CONFIGS:
                     if config not in configs.keys():
                         passed = False

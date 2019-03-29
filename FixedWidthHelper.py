@@ -1,5 +1,6 @@
-from fastnumbers import *
+import fastnumbers
 import mmap
+import operator
 import os
 import sys
 
@@ -44,8 +45,9 @@ def convert_tsv_to_fwf(file_path, out_file_path):
         column_size = column_size_dict[i]
         column_start_coords.append(str(cumulative_position))
         cumulative_position += column_size
+    column_start_coords.append(str(cumulative_position))
 
-    # Build a map of the header items and save this to a file
+    # Build a map of the column names and save this to a file
     col_names_string, max_col_name_length = buildStringMap([x.decode() for x in col_names])
     writeStringToFile(out_file_path, ".cn", col_names_string)
     writeStringToFile(out_file_path, ".mcnl", max_col_name_length)
@@ -79,22 +81,24 @@ def convert_tsv_to_fwf(file_path, out_file_path):
         my_file.readline()
 
         with open(out_file_path, 'wb') as out_file:
-            cumulative_position = 0
-
+            num_rows = 0
             for line in my_file:
+                num_rows += 1
                 line_items = line.rstrip(b"\n").split(b"\t")
 
                 line_out = b""
                 for i in sorted(column_size_dict.keys()):
                     line_out += format_string(line_items[i], column_size_dict[i])
-                cumulative_position += len(line_out)
 
                 # This newline character is unnecessary, so it adds a bit of disk space.
                 # However, it makes the files much more readable to humans.
                 out_file.write(line_out + b"\n")
 
+    # Save num rows
+    writeStringToFile(out_file_path, ".nrow", str(num_rows).encode())
+
 def get_type(a_string):
-    return ("s", "n")[isfloat(a_string)] #string or number
+    return ("s", "n")[fastnumbers.isfloat(a_string)] #string or number
 
 def get_most_generic_type(types_set):
     if len(types_set) > 1:
@@ -106,29 +110,51 @@ def format_string(x, size):
     formatted = "{:<" + str(size) + "}"
     return formatted.format(x.decode()).encode()
 
-def parse_data_coords(line_indices, coords_file, coords_file_max_length, full_str_length):
-    coords_file_length = len(coords_file)
+def parse_data_coords(line_indices, coords_file, coords_file_max_length):
     out_dict = {}
 
     for index in line_indices:
         start_pos = index * (coords_file_max_length + 1)
         next_start_pos = start_pos + coords_file_max_length + 1
-        further_next_start_pos = min(next_start_pos + coords_file_max_length, coords_file_length)
+        further_next_start_pos = next_start_pos + coords_file_max_length + 1
 
-        if start_pos in out_dict:
-            data_start_pos = out_dict[start_pos]
+        if index in out_dict:
+            data_start_pos = out_dict[index]
         else:
             data_start_pos = int(coords_file[start_pos:next_start_pos].rstrip())
+            out_dict[index] = data_start_pos
 
-        if next_start_pos == further_next_start_pos:
-            data_end_pos = full_str_length
+        if (index + 1) in out_dict:
+            data_end_pos = out_dict[index + 1]
         else:
-            if next_start_pos in out_dict:
-                data_end_pos = out_dict[next_start_pos]
-            else:
-                data_end_pos = int(coords_file[next_start_pos:further_next_start_pos].rstrip())
+            data_end_pos = int(coords_file[next_start_pos:further_next_start_pos].rstrip())
+            out_dict[index + 1] = data_end_pos
 
         yield [index, data_start_pos, data_end_pos]
+
+#def parse_data_coords(line_indices, coords_file, coords_file_max_length, full_str_length):
+#    coords_file_length = len(coords_file)
+#    out_dict = {}
+#
+#    for index in line_indices:
+#        start_pos = index * (coords_file_max_length + 1)
+#        next_start_pos = start_pos + coords_file_max_length + 1
+#        further_next_start_pos = min(next_start_pos + coords_file_max_length, coords_file_length)
+#
+#        if start_pos in out_dict:
+#            data_start_pos = out_dict[start_pos]
+#        else:
+#            data_start_pos = int(coords_file[start_pos:next_start_pos].rstrip())
+#
+#        if next_start_pos == further_next_start_pos:
+#            data_end_pos = full_str_length - 1
+#        else:
+#            if next_start_pos in out_dict:
+#                data_end_pos = out_dict[next_start_pos]
+#            else:
+#                data_end_pos = int(coords_file[next_start_pos:further_next_start_pos].rstrip())
+#
+#        yield [index, data_start_pos, data_end_pos]
 
 def parse_data_values(start_offset, segment_length, data_coords, str_like_object, end_offset=0):
     start_pos = start_offset * segment_length
@@ -193,11 +219,8 @@ def parse_row_for_sample(meta, sample_id, col_coords):
     if sample_id in meta["sample_lookup"]:
         return parse_row(meta, meta["sample_lookup"][sample_id], col_coords)
     else:
-        # The last column has a newline character at the end, so we do this (as a hack) to ignore it.
-        col_coords2 = list(col_coords)
-        col_coords2[-1][-1] -= 1
-
-        return b"".join([b" " * (coords[2] - coords[1]) for coords in col_coords2])
+        # Fill in missing data points with spaces
+        return b"".join([b" " * (coords[2] - coords[1]) for coords in col_coords])
 
 #def parse_row_values_for_sample(meta, sample_id, col_coords=None):
 #    return parse_row_values(meta, meta["sample_lookup"][sample_id], col_coords)
@@ -222,22 +245,16 @@ def merge_fwf_files(in_file_paths, out_file_path):
     for in_file_path in in_file_paths:
         meta = {}
         meta["data_num_rows"] = countFileLines(in_file_path)
-        meta["data_num_cols"] = countFileLines(in_file_path, ".cc")
+        meta["data_num_cols"] = countFileLines(in_file_path, ".cn")
         meta["data_handle"] = openReadFile(in_file_path)
-
         meta["ll"] = readIntFromFile(in_file_path, ".ll")
         meta["cc_handle"] = openReadFile(in_file_path, ".cc")
         meta["mccl"] = readIntFromFile(in_file_path, ".mccl")
-        meta["col_coords"] = list(parse_data_coords(range(meta["data_num_cols"]), meta["cc_handle"], meta["mccl"], meta["ll"]))
+        meta["col_coords"] = list(parse_data_coords(range(meta["data_num_cols"]), meta["cc_handle"], meta["mccl"]))
         meta["cn_handle"] = openReadFile(in_file_path, ".cn")
         meta["mcnl"] = readIntFromFile(in_file_path, ".mcnl")
         meta["ct_handle"] = openReadFile(in_file_path, ".ct")
         meta["mctl"] = readIntFromFile(in_file_path, ".mctl")
-
-#        meta["variables"] = parse_row_values(meta, 0)
-#        meta["variable_lookup"] = {}
-#        for i, variable in zip(range(meta["data_num_cols"]), meta["variables"]):
-#            meta["variable_lookup"][variable.rstrip()] = i
 
         meta["sample_lookup"] = {}
         for i, sample_id in zip(range(meta["data_num_rows"]), parse_column_values(meta, 0, 0)):
@@ -258,17 +275,18 @@ def merge_fwf_files(in_file_paths, out_file_path):
     longest_sample_id = getMaxStringLength([x.decode() for x in all_sample_ids])
 
     # Calculate the column start coordinates for the merged data
-    column_start_coords = [0]
+    column_start_coords = ["0"]
     cumulative_position = longest_sample_id
 
     for in_file_path in in_file_paths:
         col_coords = in_file_meta[in_file_path]["col_coords"]
 
         for i in range(1, len(col_coords)):
-            column_start_coords.append(str(cumulative_position))
             column_size = col_coords[i][2] - col_coords[i][1]
+            column_start_coords.append(str(cumulative_position))
             cumulative_position += column_size
 
+    column_start_coords.append(str(cumulative_position))
     column_coords_string, max_column_coord_length = buildStringMap(column_start_coords)
     writeStringToFile(out_file_path, ".cc", column_coords_string)
     writeStringToFile(out_file_path, ".mccl", max_column_coord_length)
@@ -314,60 +332,127 @@ def merge_fwf_files(in_file_paths, out_file_path):
             if i == 0:
                 writeStringToFile(out_file_path, ".ll", str(len(out_line) + 1).encode())
 
+    writeStringToFile(out_file_path, ".nrow", str(len(all_sample_ids)).encode())
+
     for meta in in_file_meta.values():
         meta["data_handle"].close()
         meta["cc_handle"].close()
         meta["cn_handle"].close()
         meta["ct_handle"].close()
 
-def query_fwf_file(in_file_path, out_file_path):
-    meta = {}
-#    meta["data_num_rows"] = countFileLines(in_file_path)
-#    meta["data_num_cols"] = countFileLines(in_file_path, ".cc")
-    meta["data_handle"] = openReadFile(in_file_path)
+class DiscreteFilter:
+    # Input the column name as an non-encoded string.
+    # Input the values as a list, will be converted to an encoded set.
+    def __init__(self, column_name, values_list):
+        self.column_name = column_name
+        self.values_set = set([x.encode() for x in values_list])
+        self.column_index = None # This will be specified later.
 
-    meta["ll"] = readIntFromFile(in_file_path, ".ll")
-    meta["cc_handle"] = openReadFile(in_file_path, ".cc")
-    meta["mccl"] = readIntFromFile(in_file_path, ".mccl")
-#    meta["col_coords"] = list(parse_data_coords(range(meta["data_num_cols"]), meta["cc_handle"], meta["mccl"], meta["ll"]))
-#    meta["cn_handle"] = openReadFile(in_file_path, ".cn")
-#    meta["mcnl"] = readIntFromFile(in_file_path, ".mcnl")
-#    meta["ct_handle"] = openReadFile(in_file_path, ".ct")
-#    meta["mctl"] = readIntFromFile(in_file_path, ".mctl")
+class NumericFilter:
+    # Input the column name as an non-encoded string.
+    # Operator must be <, <=, >, >=, ==, or !=
+    # Query value must numeric (float or int)
+    def __init__(self, column_name, operator, query_value):
+        self.column_name = column_name
+        self.operator = operator
+        self.query_value = query_value
+        self.column_index = None # This will be specified later.
 
-#        meta["variables"] = parse_row_values(meta, 0)
-#        meta["variable_lookup"] = {}
-#        for i, variable in zip(range(meta["data_num_cols"]), meta["variables"]):
-#            meta["variable_lookup"][variable.rstrip()] = i
+def filter_rows_discrete(row_indices, the_filter, data_handle, cc_handle, mccl, ll):
+    query_col_coords = list(parse_data_coords([the_filter.column_index], cc_handle, mccl))
 
-#    meta["sample_lookup"] = {}
-#    for i, sample_id in zip(range(meta["data_num_rows"]), parse_column_values(meta, 0, 0)):
-#        meta["sample_lookup"][sample_id] = i
+    for row_index in row_indices:
+        if next(parse_data_values(row_index, ll, query_col_coords, data_handle)).rstrip() in the_filter.values_set:
+            yield row_index
 
-    out_col_indices = [2, 5]
-    out_col_coords = list(parse_data_coords(out_col_indices, meta["cc_handle"], meta["mccl"], meta["ll"]))
+def filter_rows_numeric(row_indices, the_filter, operator_dict, data_handle, cc_handle, mccl, ll):
+    if the_filter.operator not in operator_dict:
+        raise Exception("Invalid operator: " + oper)
 
-    with open(out_file_path, 'wb') as out_file:
-        all_query_col_coords = parse_data_coords(query_col_indices, meta["cc_handle"], meta["mccl"], meta["ll"])
-        keep_row_indices = range(1, num_rows)
+    query_col_coords = list(parse_data_coords([the_filter.column_index], cc_handle, mccl))
 
-        for query_col_index in query_col_indices:
-            keep_row_indices = filter_rows(keep_row_indices, query_col_index, [next(all_query_col_coords)])
+    for row_index in row_indices:
+        value = next(parse_data_values(row_index, ll, query_col_coords, data_handle)).rstrip()
+        if value == b"": # Is missing
+            continue
 
-        chunk_size = 1000
-        out_lines = []
+        # See https://stackoverflow.com/questions/18591778/how-to-pass-an-operator-to-a-python-function
+        if operator_dict[the_filter.operator](fastnumbers.float(value), the_filter.query_value):
+            yield row_index
 
-        for row_index in [0] + list(keep_row_indices):
-            out_lines.append(b"\t".join(parse_data_values(row_index, line_length, out_col_coords, file_handles["data"])).rstrip())
+# select_columns should be a list, will be converted to a set (for performance reasons)
+# select_groups should be a list, will be converted to a set (for performance reasons)
+def query_fwf_file(in_file_path, discrete_filters, numeric_filters, select_columns, select_groups):
+    select_columns = set(select_columns)
+    select_groups = set(select_groups)
 
-            if len(out_lines) % chunk_size == 0:
-                out_file.write(b"\n".join(out_lines) + b"\n")
-                out_lines = []
+    # Read the column names and map them to indices
+    cn_file = openReadFile(in_file_path, ".cn")
+    column_name_index_dict = {line.rstrip().decode(): i for i, line in enumerate(iter(cn_file.readline, b""))}
+    cn_file.close()
 
-        if len(out_lines) > 0:
-            out_file.write(b"\n".join(out_lines) + b"\n")
+    # Prepare to parse data
+    data_handle = openReadFile(in_file_path)
+    ll = readIntFromFile(in_file_path, ".ll")
+    cc_handle = openReadFile(in_file_path, ".cc")
+    mccl = readIntFromFile(in_file_path, ".mccl")
+    cn_handle = openReadFile(in_file_path, ".cn")
+    mcnl = readIntFromFile(in_file_path, ".mcnl")
+    num_rows = readIntFromFile(in_file_path, ".nrow")
 
-    meta["data_handle"].close()
-#    meta["cc_handle"].close()
-#    meta["cn_handle"].close()
-#    meta["ct_handle"].close()
+    # Find rows that match discrete filtering criteria
+    keep_row_indices = range(num_rows)
+    for df in discrete_filters:
+        df.column_index = column_name_index_dict[df.column_name]
+        keep_row_indices = filter_rows_discrete(keep_row_indices, df, data_handle, cc_handle, mccl, ll)
+
+    # Find rows that match numeric filtering criteria
+    num_operator_dict = {">": operator.gt, "<": operator.lt, ">=": operator.ge, "<=": operator.le, "==": operator.eq, "!=": operator.ne}
+    for nf in numeric_filters:
+        nf.column_index = column_name_index_dict[nf.column_name]
+        keep_row_indices = filter_rows_numeric(keep_row_indices, nf, num_operator_dict, data_handle, cc_handle, mccl, ll)
+
+    # Find which columns to select
+    for column_name in column_name_index_dict:
+        column_name_parts = column_name.split("__")
+        if column_name_parts[0] in select_groups:
+            select_columns.add(column_name)
+    select_columns = sorted(list(select_columns))
+
+    # By default, select all columns
+    if len(select_columns) == 0:
+        select_columns = sorted(column_name_index_dict.keys())
+
+    # Put the Sample column at the beginning
+    if "Sample" in select_columns:
+        select_columns.remove("Sample")
+    select_columns.insert(0, "Sample")
+
+    # Get the index and coords for each column to select
+    select_column_indices = [column_name_index_dict[name] for name in select_columns]
+    select_column_coords = list(parse_data_coords(select_column_indices, cc_handle, mccl))
+
+    # Build output (list of lists for now)
+    output = [[x.encode() for x in select_columns]]
+    for row_index in keep_row_indices:
+        output.append([x.rstrip() for x in parse_data_values(row_index, ll, select_column_coords, data_handle)])
+
+#    # Write TSV output (in chunks)
+#    with open(out_file_path, 'wb') as out_file:
+#        chunk_size = 1000
+#        out_lines = [b"\t".join([x.encode() for x in select_columns])]
+#
+#        for row_index in keep_row_indices:
+#            out_lines.append(b"\t".join(parse_data_values(row_index, ll, select_column_coords, data_handle)).rstrip())
+#
+#            if len(out_lines) % chunk_size == 0:
+#                out_file.write(b"\n".join(out_lines) + b"\n")
+#                out_lines = []
+#
+#        if len(out_lines) > 0:
+#            out_file.write(b"\n".join(out_lines) + b"\n")
+
+    data_handle.close()
+    cc_handle.close()
+
+    return output

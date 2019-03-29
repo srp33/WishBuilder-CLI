@@ -2,4 +2,4 @@
 
 set -o errexit
 
-python3 Tests/ConvertAndMerge.py
+python3 Tests/ConvertMergeFilter.py

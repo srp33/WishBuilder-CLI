@@ -1,4 +1,5 @@
-Sample	ColE	ColF	ColG	ColH
-2	9.9	99.9	Red	Yellow
-3	8.8	88.8	Yellow	Red
-4	7.7	77.7	Orange	Orange
+Sample	IntA	IntB	ColorA	ColorB
+2	2	22	Red	Yellow
+3	3	33	Red	Yellow
+4	4	44	Orange	Brown
+5	5	55	Brown	Orange

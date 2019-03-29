@@ -1,4 +1,5 @@
-Sample	ColA	ColB	ColC	ColD
+Sample	FloatA	FloatB	TempA	TempB
 1	1.1	11.1	Low	High
 2	2.2	22.2	High	Low
-3	3.3	33.2	Med	Med
+3	3.3	33.3	Med	Med
+4	4.4	44.4	Med	Med

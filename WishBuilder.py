@@ -1,16 +1,23 @@
-import glob, json, logging, os, pickle, psutil, shutil, sys, time, inspect
-from compare import *
-from multiprocessing import Process
-from GithubDao import GithubDao
-from SqliteDao import SqliteDao
-from tests import *
-from Constants import *
-from Shared import *
-from FixedWidthHelper import *
 from capturer import CaptureOutput
-import msgpack
-from yaml import load
-from yaml import FullLoader
+from compare import *
+import glob
+import inspect
+#import json
+#import logging
+from multiprocessing import Process
+import os
+#import pickle
+import psutil
+import shutil
+import sys
+from tests import *
+import time
+from Constants import *
+from DataSetBuilder import *
+from GithubDao import GithubDao
+from Shared import *
+from SqliteDao import SqliteDao
+#import msgpack
 
 def setup():
     os.chdir(WB_DIRECTORY)
@@ -224,15 +231,15 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     printToLog("Got to here!!")
     sys.exit(1)
 
-    printToLog("Creating JSON file", pr)
-    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
-        # Strip the .mp off the end of each group name
-        feature_dict2 = {}
-        for key, value in feature_dict.items():
-            feature_dict2[key[:-3]] = feature_dict[key]
-
-        json.dump(feature_dict2, fp_groups)
-    printToLog("Done creating JSON file", pr)
+#    printToLog("Creating JSON file", pr)
+#    with open(os.path.join(geney_dataset_path, 'groups.json'), 'w') as fp_groups:
+#        # Strip the .mp off the end of each group name
+#        feature_dict2 = {}
+#        for key, value in feature_dict.items():
+#            feature_dict2[key[:-3]] = feature_dict[key]
+#
+#        json.dump(feature_dict2, fp_groups)
+#    printToLog("Done creating JSON file", pr)
 
     merged_transposed_file = os.path.join(geney_dataset_path, "transposed.tsv")
     merged_transposed_temp_dir = os.path.join(geney_dataset_path, "transposed.temp")
@@ -258,67 +265,67 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
 
     return True
 
-def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out_file):
-    printToLog("Saving metadata", pr)
-    # In the transposed file, samples are actually features
-    with open(os.path.join(transposed_map_dir, 'samples.msgpack'), 'rb') as samples_file:
-        features = msgpack.unpack(samples_file)
+#def save_metadata(pr: PullRequest, transposed_data_file, transposed_map_dir, out_file):
+#    printToLog("Saving metadata", pr)
+#    # In the transposed file, samples are actually features
+#    with open(os.path.join(transposed_map_dir, 'samples.msgpack'), 'rb') as samples_file:
+#        features = msgpack.unpack(samples_file)
+#
+#    # Open the transposed data file so we can read feature values
+#    with open(os.path.join(transposed_map_dir, 'sample_data.msgpack'), 'rb') as map_file:
+#        data_map = msgpack.unpack(map_file)
+#
+#    meta_dict = {}
+#
+#    with open(transposed_data_file) as transposed_file:
+#        for i in range(len(features)):
+#            if i > 0 and i % 1000 == 0:
+#                printToLog("{}".format(i), pr)
+#
+#            feature = features[i]
+#            feature_coordinates = data_map[feature]
+#            transposed_file.seek(feature_coordinates[0])
+#
+#            feature_values = [x for x in transposed_file.read(feature_coordinates[1]).split("\t") if x != "NA"]
+#            feature_values = sorted(list(set(feature_values)))
+#
+#            # Check whether we only had missing (NA) values
+#            if len(feature_values) == 0:
+#                meta_dict[feature] = {'options': ["NA"], 'numOptions': 1}
+#            else:
+#                float_values = convert_to_floats(feature_values)
+#
+#                if not float_values:
+#                    meta_dict[feature] = {'options': feature_values, 'numOptions': len(feature_values)}
+#                else:
+#                    meta_dict[feature] = {'options': 'continuous', 'min': min(float_values), 'max': max(float_values)}
+#
+#    metadata = {'meta': meta_dict}
+#    with open(out_file, 'wb') as fp:
+#        pickle.dump(metadata, fp)
 
-    # Open the transposed data file so we can read feature values
-    with open(os.path.join(transposed_map_dir, 'sample_data.msgpack'), 'rb') as map_file:
-        data_map = msgpack.unpack(map_file)
+#def convert_to_floats(str_list):
+#    try:
+#        return [float(x) for x in str_list]
+#    except:
+#        return False
 
-    meta_dict = {}
-
-    with open(transposed_data_file) as transposed_file:
-        for i in range(len(features)):
-            if i > 0 and i % 1000 == 0:
-                printToLog("{}".format(i), pr)
-
-            feature = features[i]
-            feature_coordinates = data_map[feature]
-            transposed_file.seek(feature_coordinates[0])
-
-            feature_values = [x for x in transposed_file.read(feature_coordinates[1]).split("\t") if x != "NA"]
-            feature_values = sorted(list(set(feature_values)))
-
-            # Check whether we only had missing (NA) values
-            if len(feature_values) == 0:
-                meta_dict[feature] = {'options': ["NA"], 'numOptions': 1}
-            else:
-                float_values = convert_to_floats(feature_values)
-
-                if not float_values:
-                    meta_dict[feature] = {'options': feature_values, 'numOptions': len(feature_values)}
-                else:
-                    meta_dict[feature] = {'options': 'continuous', 'min': min(float_values), 'max': max(float_values)}
-
-    metadata = {'meta': meta_dict}
-    with open(out_file, 'wb') as fp:
-        pickle.dump(metadata, fp)
-
-def convert_to_floats(str_list):
-    try:
-        return [float(x) for x in str_list]
-    except:
-        return False
-
-def save_description(pr: PullRequest, test_dir, out_file):
-    printToLog("Saving description", pr)
-
-    with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
-        description = load(config_fp, Loader=FullLoader)
-    with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
-        md = description_fp.read()
-
-    description['description'] = md
-    description['id'] = pr.branch
-    description['uploadDate'] = time.time()
-    description['numSamples'] = pr.num_samples
-    description['numFeatures'] = pr.feature_variables
-
-    with open(out_file, 'w') as out_fp:
-        json.dump(description, out_fp)
+#def save_description(pr: PullRequest, test_dir, out_file):
+#    printToLog("Saving description", pr)
+#
+#    with open(os.path.join(test_dir, pr.branch, CONFIG_FILE_NAME)) as config_fp:
+#        description = load(config_fp, Loader=FullLoader)
+#    with open(os.path.join(test_dir, pr.branch, DESCRIPTION_FILE_NAME)) as description_fp:
+#        md = description_fp.read()
+#
+#    description['description'] = md
+#    description['id'] = pr.branch
+#    description['uploadDate'] = time.time()
+#    description['numSamples'] = pr.num_samples
+#    description['numFeatures'] = pr.feature_variables
+#
+#    with open(out_file, 'w') as out_fp:
+#        json.dump(description, out_fp)
 
 def send_report(pr):
     #pr.send_report(WISHBUILDER_EMAIL, WISHBUILDER_PASS, send_to='hillkimball@gmail.com')

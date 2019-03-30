@@ -127,6 +127,9 @@ def test(pr: PullRequest, sql_dao):
 
                     for f in tsv_file_paths:
                         os.system('mv {} {}/'.format(f, raw_data_storage))
+
+                        if os.path.exists("{}.aliases".format(f)):
+                            os.system("mv {}.aliases {}/".format(f, raw_data_storage))
             else:
                 pr.passed = False
 
@@ -185,14 +188,14 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
 #        prefixes.append(prefix)
 #        tsv_map_dir = "{}.mp".format(prefix)
         fwf_file = tsv_file.replace(parse_file_ext(tsv_file), ".fwf")
-        fwf_files.append(fwf_files)
+        fwf_files.append(fwf_file)
 
 #        shutil.rmtree(tsv_map_dir, ignore_errors=True)
 #        printToLog("Creating fast-file map for {}".format(tsv_file), pr)
 #        map_tsv(tsv_file, tsv_map_dir)
         printToLog("Creating fixed-width file for {}".format(tsv_file), pr)
         convert_tsv_to_fwf(tsv_file, fwf_file)
-        os.remove(tsv_file)
+#        os.remove(tsv_file)
 
         printToLog("Done creating fixed-width file for {}".format(tsv_file), pr)
 #        tsv_map_dirs.append(tsv_map_dir)
@@ -205,6 +208,9 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         os.system("mv {} {}".format(fwf_files[0], merged_file))
         for f in glob.glob("{}.*".format(fwf_files[0])):
             os.system("mv {} {}{}".format(f, merged_file, parse_file_ext(f)))
+
+        apply_aliases(tsv_files[0], fwf_files[0])
+
 #        os.system("mv {} {}".format(tsv_map_dirs[0], merged_map_dir))
 
 #        features = [x.decode() for x in open_msgpack(os.path.join(merged_map_dir, 'features.msgpack'), 'rb') if x.decode() != "Sample"]
@@ -214,6 +220,9 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
         merge_fwf_files(fwf_files, merged_file)
         printToLog("Done creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
+
+        for i in range(len(fwf_files)):
+            apply_aliases(tsv_files[i], fwf_files[i])
 
 #        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(tsv_files)), pr)
 #        feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)

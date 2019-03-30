@@ -1,7 +1,9 @@
+import gzip
 import fastnumbers
 import json
 import mmap
 import os
+import shutil
 import sys
 import time
 from DataSetHelper import *
@@ -195,6 +197,77 @@ def parse_row_for_sample(meta, sample_id, col_coords):
         # Fill in missing data points with spaces
         return b"".join([b" " * (coords[2] - coords[1]) for coords in col_coords])
 
+def build_pathway_gene_dict():
+    in_gmt_file_url = "https://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.gmt.gz"
+    in_gmt_file_path = "/tmp/{}".format(os.path.basename(in_gmt_file_url))
+    if not os.path.exists(in_gmt_file_path):
+        os.system("wget -O {} {}".format(in_gmt_file_path, in_gmt_file_url))
+
+    pathway_dict = {}
+
+    with gzip.open(in_gmt_file_path, 'rb') as in_gmt_file:
+        for line in in_gmt_file:
+            line_items = line.decode().rstrip("\n").split("\t")
+
+            data_source = line_items[1].split(";")[1].replace("datasource: ", "").strip()
+            pathway_name = line_items[1].split(";")[0].replace("name: ", "").strip() + " [" + data_source + "]"
+
+            pathway_dict[pathway_name] = line_items[2:]
+
+    return pathway_dict
+
+def parse_column_names(fwf_file_path):
+    with open(fwf_file_path + ".cn", "rb") as cn_file:
+        return [x.rstrip().decode() for x in cn_file]
+
+def map_column_names_to_pathways(pathway_dict, column_names):
+    map_dict = {}
+
+    for pathway_name, pathway_genes in pathway_dict.items():
+        overlapping_genes = set(column_names) & set(pathway_genes)
+
+        if len(overlapping_genes) > 0:
+            overlapping_gene_indices = [column_names.index(gene) for gene in overlapping_genes]
+            overlapping_gene_indices = [str(x) for x in sorted(overlapping_gene_indices)]
+
+            map_dict[pathway_name] = overlapping_gene_indices
+
+    return map_dict
+
+def save_pathway_map_to_file(pathway_map_dict, fwf_file_path):
+    pathway_output = b""
+
+    for pathway_name, pathway_gene_indices in pathway_map_dict.items():
+        pathway_output += "{}\t{}\n".format(pathway_name, ",".join(pathway_gene_indices)).encode()
+
+    if len(pathway_output) > 0:
+        writeStringToFile(fwf_file_path, ".pathways", pathway_output)
+
+def apply_aliases(tsv_file_path, fwf_file_path):
+    aliases_file_path = tsv_file_path + ".aliases"
+
+    if not os.path.exists(aliases_file_path):
+        return
+
+    alias_dict = {}
+    with open(aliases_file_path) as aliases_file:
+        for line in aliases_file:
+            line_items = line.rstrip("\n").split("\t")
+            alias_dict[line_items[0]] = line_items[1]
+
+    with open(fwf_file_path + ".cn", "rb") as cn_file:
+        new_names = []
+        for x in cn_file:
+            x = x.rstrip().decode()
+            if x in alias_dict:
+                new_names.append(alias_dict[x])
+            else:
+                new_names.append(x)
+
+    column_names_string, max_column_names_length = buildStringMap(new_names)
+    writeStringToFile(fwf_file_path, ".cn", column_names_string)
+    writeStringToFile(fwf_file_path, ".mcnl", max_column_names_length)
+
 def merge_fwf_files(in_file_paths, out_file_path):
     in_file_paths = sorted(in_file_paths)
 
@@ -251,27 +324,41 @@ def merge_fwf_files(in_file_paths, out_file_path):
     writeStringToFile(out_file_path, ".cc", column_coords_string)
     writeStringToFile(out_file_path, ".mccl", max_column_coord_length)
 
-    # Merge column names
-    column_names = [format_string(b"Sample", longest_sample_id).decode()]
+    # Merge column names and pathway information
+    original_column_names = ["Sample"]
+    merged_column_names = ["Sample"]
+    merged_pathway_gene_dict = {}
     group_dict = {}
+
     for in_file_path in in_file_paths:
+        pathway_gene_indices_dict = parse_pathway_gene_indices(in_file_path)
+
         for col_index in range(1, in_file_meta[in_file_path]["data_num_cols"]):
             column_name = parse_meta_value(in_file_meta[in_file_path]["cn_handle"], in_file_meta[in_file_path]["mcnl"], col_index).rstrip().decode()
+            original_column_names.append(column_name)
+
+            for pathway_name, gene_indices in pathway_gene_indices_dict.items():
+                if col_index in gene_indices:
+                    merged_pathway_gene_dict[pathway_name] = merged_pathway_gene_dict.setdefault(pathway_name, []) + [column_name]
 
             in_file_extension = os.path.splitext(in_file_path)[1]
             prefix = os.path.basename(in_file_path).replace(in_file_extension, "")
 
-            column_name = "{}__{}".format(prefix, column_name)
-            column_names.append(column_name)
+            merged_column_name = "{}__{}".format(prefix, column_name)
+            merged_column_names.append(merged_column_name)
 
             if prefix not in group_dict:
                 group_dict[prefix] = []
             group_dict[prefix].append(column_name)
 
-    # Save column names to file
-    column_names_string, max_column_names_length = buildStringMap(column_names)
+    # Save merged column names to file
+    column_names_string, max_column_names_length = buildStringMap(merged_column_names)
     writeStringToFile(out_file_path, ".cn", column_names_string)
     writeStringToFile(out_file_path, ".mcnl", max_column_names_length)
+
+    # Save pathway indices to file
+    pathway_gene_indices_dict = map_column_names_to_pathways(merged_pathway_gene_dict, original_column_names)
+    save_pathway_map_to_file(pathway_gene_indices_dict, out_file_path)
 
     # Save groups to a file
     if len(group_dict) > 1:

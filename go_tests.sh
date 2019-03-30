@@ -2,5 +2,9 @@
 
 set -o errexit
 
-rm -f /tmp/1*fwf* /tmp/2*fwf*
-python3 Tests/ConvertMergeFilter.py
+tmp_dir="/tmp/WishBuilder_Parse_Tests"
+
+mkdir -p $tmp_dir
+rm -rf $tmp_dir/*
+
+python3 Tests/ConvertMergeFilter.py $tmp_dir

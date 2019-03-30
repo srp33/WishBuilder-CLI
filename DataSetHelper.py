@@ -41,3 +41,18 @@ def openReadFile(file_path, file_extension=""):
 
 def parse_meta_value(handle, length, col_index):
     return next(parse_data_values(col_index, length + 1, [(col_index, 0, length)], handle))
+
+def parse_pathway_gene_indices(file_path):
+    my_dict = {}
+
+    if not os.path.exists(file_path + ".pathways"):
+        return my_dict
+
+    with openReadFile(file_path, ".pathways") as pathway_file:
+        for line in iter(pathway_file.readline, b""):
+            line_items = line.decode().rstrip("\n").split("\t")
+            my_dict[line_items[0]] = [int(x) for x in line_items[1].split(",")]
+
+    pathway_file.close()
+
+    return my_dict

@@ -1,6 +1,7 @@
 import fastnumbers
 import mmap
 import os
+import re
 import sys
 
 def parse_data_coords(line_indices, coords_file, coords_file_max_length):
@@ -31,9 +32,12 @@ def parse_data_values(start_offset, segment_length, data_coords, str_like_object
     for coords in data_coords:
         yield str_like_object[(start_pos + coords[1]):(start_pos + coords[2] + end_offset)]
 
-def readIntFromFile(file_path, file_extension=""):
+def readStringFromFile(file_path, file_extension=""):
     with open(file_path + file_extension, 'rb') as the_file:
-        return int(the_file.read().rstrip())
+        return the_file.read().rstrip()
+
+def readIntFromFile(file_path, file_extension=""):
+    return int(readStringFromFile(file_path, file_extension))
 
 def openReadFile(file_path, file_extension=""):
     the_file = open(file_path + file_extension, 'rb')
@@ -41,18 +45,3 @@ def openReadFile(file_path, file_extension=""):
 
 def parse_meta_value(handle, length, col_index):
     return next(parse_data_values(col_index, length + 1, [(col_index, 0, length)], handle))
-
-def parse_pathway_gene_indices(file_path):
-    my_dict = {}
-
-    if not os.path.exists(file_path + ".pathways"):
-        return my_dict
-
-    with openReadFile(file_path, ".pathways") as pathway_file:
-        for line in iter(pathway_file.readline, b""):
-            line_items = line.decode().rstrip("\n").split("\t")
-            my_dict[line_items[0]] = [int(x) for x in line_items[1].split(",")]
-
-    pathway_file.close()
-
-    return my_dict

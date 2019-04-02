@@ -11,14 +11,55 @@ class DataSetParser:
     def __init__(self, data_file_path):
         self.data_file_path = data_file_path
 
-    def get_num_samples(self):
-        return readIntFromFile(self.data_file_path, ".nrow")
+        self.__id = None
+        self.__timestamp = None
+        self.__description = None
+        self.__title = None
+        self.__num_samples = None
+        self.__num_features = None
+        self.__total_datapoints = None
 
-    def get_num_variables(self):
-        return readIntFromFile(self.data_file_path, ".ncol")
+    @property
+    def id(self) -> str:
+        if self.__id == None:
+            self.__id = readStringFromFile(self.data_file_path, ".id").decode()
+        return self.__id
 
-    def get_num_datapoints(self):
-        return self.get_num_samples() * self.get_num_variables()
+    @property
+    def timestamp(self) -> float:
+        if self.__timestamp == None:
+            self.__timestamp = readStringFromFile(self.data_file_path, ".timestamp").decode()
+        return self.__timestamp
+
+    @property
+    def title(self) -> str:
+        if self.__title == None:
+            self.__title = readStringFromFile(self.data_file_path, ".title").decode()
+        return self.__title
+
+    @property
+    def description(self) -> str:
+        if self.__description == None:
+            self.__description = readStringFromFile(self.data_file_path, ".desc").decode()
+        return self.__description
+
+    @property
+    def num_samples(self) -> int:
+        if self.__num_samples == None:
+            self.__num_samples = readIntFromFile(self.data_file_path, ".nrow")
+        return self.__num_samples
+
+    @property
+    def num_features(self) -> int:
+        if self.__num_features == None:
+            self.__num_features = readIntFromFile(self.data_file_path, ".ncol")
+        return self.__num_features
+
+    @property
+    def total_datapoints(self):
+        if self.__total_datapoints == None:
+            self.__total_datapoints = self.num_samples * self.num_features
+        return self.__total_datapoints
 
     # If all select_columns are the default, we will select all columns.
     def query(self, discrete_filters, numeric_filters, select_columns=[], select_groups=[], select_pathways=[]):
@@ -41,22 +82,12 @@ class DataSetParser:
             select_column_indices = set([0] + [column_name_index_dict[x.encode()] for x in select_columns])
 
             # Parse pathways and add them to the list of columns that will be selected
-            if len(select_pathways) > 0:
-                select_pathways = set(select_pathways)
-
-                for pathway_name, gene_indices in parse_pathway_gene_indices(self.data_file_path).items():
-                    if pathway_name in select_pathways:
-                        for column_index in gene_indices:
-                            select_column_indices.add(column_index)
+            for pathway_name in [x.encode() for x in select_pathways]:
+                select_column_indices = select_column_indices | self.parse_indices_for_group(self.data_file_path, ".pathways", pathway_name)
 
             # Find which columns to select based on groups
-            # This may be a bit slow if you have a lot of columns (see if you can optimize)
-            if len(select_groups) > 0:
-                select_groups = set([x.encode() for x in select_groups])
-                for column_name in column_name_index_dict:
-                    column_name_parts = column_name.split(b"__")
-                    if column_name_parts[0] in select_groups:
-                        select_column_indices.add(column_name_index_dict[column_name])
+            for group_name in [x.encode() for x in select_groups]:
+                select_column_indices = select_column_indices | self.parse_indices_for_group(self.data_file_path, ".groups", group_name)
 
         select_column_indices = sorted(list(select_column_indices))
 
@@ -65,7 +96,7 @@ class DataSetParser:
         ll = readIntFromFile(self.data_file_path, ".ll")
         cc_handle = openReadFile(self.data_file_path, ".cc")
         mccl = readIntFromFile(self.data_file_path, ".mccl")
-        num_rows = self.get_num_samples()
+        num_rows = self.num_samples
 
         # Find rows that match discrete filtering criteria
         keep_row_indices = range(num_rows)
@@ -138,3 +169,19 @@ class DataSetParser:
 
     def get_num_datapoints_matching_filters(self):
         return 0
+
+    def parse_indices_for_group(self, fwf_file_path, file_extension, group_name):
+        indices = set()
+
+        if os.path.exists(fwf_file_path + file_extension):
+            pattern = b"^" + re.escape(group_name) + re.escape(b"\t")
+
+            my_file = openReadFile(fwf_file_path, file_extension)
+            for line in iter(my_file.readline, b""):
+                if re.search(pattern, line):
+                    indices = set([int(x) for x in line.rstrip(b"\n").split(b"\t")[1].split(b",")])
+                    break
+
+            my_file.close()
+
+        return indices

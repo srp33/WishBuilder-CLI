@@ -87,6 +87,9 @@ def convert_tsv_to_fwf(dataset_id, tsv_file_path, fwf_file_path):
 
     parse_and_save_column_types(fwf_file_path)
 
+    # Save alias information
+    apply_aliases(build_alias_dict(tsv_file_path), fwf_file_path)
+
     # Save pathway information
     pathway_gene_dict = build_pathway_gene_dict()
     pathway_gene_indices_dict = map_column_name_dict_to_indices(pathway_gene_dict, col_names)
@@ -175,19 +178,6 @@ def buildStringMap(the_list):
         output += formatter.format(value.decode())
 
     return output.encode(), str(max_value_length).encode()
-
-def writeStringToFile(file_path, file_extension, the_string):
-    with open(file_path + file_extension, 'wb') as the_file:
-        the_file.write(the_string)
-
-def countFileLines(file_path, file_extension=""):
-    num_lines = 0
-
-    with open(file_path + file_extension, 'rb') as the_file:
-        for line in the_file:
-            num_lines += 1
-
-    return num_lines
 
 def parse_column_values(data_handle, data_num_rows, cc, ll, row_start_index, col_index):
     col_coords = [cc[col_index]]
@@ -280,7 +270,7 @@ def rename_using_aliases(column_names, alias_dict):
 
     return new_names
 
-def merge_fwf_files(in_file_paths, out_file_path, alias_dict=None):
+def merge_fwf_files(in_file_paths, out_file_path):
     in_file_paths = sorted(in_file_paths)
 
     # Open files for reading and pull metadata
@@ -362,9 +352,6 @@ def merge_fwf_files(in_file_paths, out_file_path, alias_dict=None):
             in_file_extension = os.path.splitext(in_file_path)[1]
             prefix = os.path.basename(in_file_path).replace(in_file_extension, "").encode()
 
-            if alias_dict != None and column_name in alias_dict:
-                column_name = alias_dict[column_name]
-
             merged_column_name = "{}__{}".format(prefix.decode(), column_name.decode()).encode()
             merged_column_names.append(merged_column_name)
 
@@ -384,12 +371,6 @@ def merge_fwf_files(in_file_paths, out_file_path, alias_dict=None):
     # Save group indices to file
     group_indices_dict = map_column_name_dict_to_indices(group_dict, original_column_names)
     save_column_index_map_to_file(group_indices_dict, out_file_path, ".groups")
-
-##    # Save groups to a file
-##    if len(group_dict) > 1:
-##        with open(out_file_path + ".groups", "wb") as group_file:
-##            for group_name, column_names in group_dict.items():
-##                group_file.write("{}\t{}\n".format(group_name, "\t".join(column_names)).encode())
 
     # Calculate the column types and descriptions for the merged data
     column_types = [b"i"] # This is the Sample column

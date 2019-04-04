@@ -4,4 +4,3 @@ class DiscreteFilter:
     def __init__(self, column_name, values_list):
         self.column_name = column_name
         self.values_set = set([x.encode() for x in values_list])
-        self.column_index = None # This will be specified later.

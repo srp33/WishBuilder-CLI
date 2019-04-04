@@ -3,6 +3,7 @@ import mmap
 import os
 import re
 import sys
+import tempfile
 
 def parse_data_coords(line_indices, coords_file, coords_file_max_length):
     out_dict = {}
@@ -39,9 +40,52 @@ def readStringFromFile(file_path, file_extension=""):
 def readIntFromFile(file_path, file_extension=""):
     return int(readStringFromFile(file_path, file_extension))
 
+def readStringsFromFile(file_path, file_extension=""):
+    the_file = openReadFile(file_path, file_extension)
+    for line in iter(the_file.readline, b""):
+        yield line.rstrip()
+    the_file.close()
+
+def readIntsFromFile(file_path, file_extension=""):
+    the_file = openReadFile(file_path, file_extension)
+    for line in iter(the_file.readline, b""):
+        yield int(line.rstrip(b"\n"))
+    the_file.close()
+
 def openReadFile(file_path, file_extension=""):
     the_file = open(file_path + file_extension, 'rb')
     return mmap.mmap(the_file.fileno(), 0, prot=mmap.PROT_READ)
 
 def parse_meta_value(handle, length, col_index):
     return next(parse_data_values(col_index, length + 1, [(col_index, 0, length)], handle))
+
+def generate_temp_file_path():
+    candidate_path = tempfile.gettempdir() + "/" + next(tempfile._get_candidate_names())
+
+    while os.path.exists(candidate_path):
+        candidate_path = tempfile.gettempdir() + "/" + next(tempfile._get_candidate_names())
+
+    return candidate_path
+
+def writeStringToFile(file_path, file_extension, the_string):
+    with open(file_path + file_extension, 'wb') as the_file:
+        the_file.write(the_string)
+
+def countFileLines(file_path, file_extension=""):
+    num_lines = 0
+
+    with open(file_path + file_extension, 'rb') as the_file:
+        for line in the_file:
+            num_lines += 1
+
+    return num_lines
+
+# I ran some informal benchmarks, and this seems to be much faster than
+#   other ways that I tried.
+def get_indices_of_strings(all_strings, search_strings):
+    string_index_dict = {}
+
+    for i, string in enumerate(all_strings):
+        string_index_dict[string] = i
+
+    return [string_index_dict[string] for string in search_strings]

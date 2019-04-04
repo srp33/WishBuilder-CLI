@@ -6,4 +6,3 @@ class NumericFilter:
         self.column_name = column_name
         self.operator = operator
         self.query_value = query_value
-        self.column_index = None # This will be specified later.

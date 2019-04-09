@@ -231,6 +231,15 @@ def map_column_name_dict_to_indices(the_dict, column_names):
 
     return map_dict
 
+def save_column_names_map_to_file(map_dict, fwf_file_path, file_extension):
+    output = b""
+
+    for name, values in map_dict.items():
+        output += "{}\t{}\n".format(name.decode(), ",".join([x.decode() for x in values])).encode()
+
+    if len(output) > 0:
+        writeStringToFile(fwf_file_path, file_extension, output)
+
 def save_column_index_map_to_file(map_dict, fwf_file_path, file_extension):
     output = b""
 
@@ -368,9 +377,10 @@ def merge_fwf_files(in_file_paths, out_file_path):
     pathway_gene_indices_dict = map_column_name_dict_to_indices(merged_pathway_gene_dict, original_column_names)
     save_column_index_map_to_file(pathway_gene_indices_dict, out_file_path, ".pathways")
 
-    # Save group indices to file
+    # Save group names and indices to file
+    save_column_names_map_to_file(group_dict, out_file_path, ".groupnames")
     group_indices_dict = map_column_name_dict_to_indices(group_dict, original_column_names)
-    save_column_index_map_to_file(group_indices_dict, out_file_path, ".groups")
+    save_column_index_map_to_file(group_indices_dict, out_file_path, ".groupindices")
 
     # Calculate the column types and descriptions for the merged data
     column_types = [b"i"] # This is the Sample column

@@ -1,4 +1,5 @@
 import fastnumbers
+from itertools import islice
 import mmap
 import operator
 import os
@@ -132,7 +133,7 @@ class DataSetParser:
             select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".pathways", select_pathways)
 
             # Find which columns to select based on groups
-            select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".groups", select_groups)
+            select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".groupindices", select_groups)
 
         select_column_indices = sorted(list(select_column_indices))
 
@@ -206,6 +207,32 @@ class DataSetParser:
 
         return num_samples, num_columns
 
+    # This function returns a dictionary where the keys are group names and
+    #   the values are the features in each group. If the group has more than
+    #   the maximum number of elements, it returns None. We will search for
+    #   these values later using search_group().
+    def get_groups(self, max_num=100):
+        group_dict = {}
+        file_extension = ".groupnames"
+
+        if os.path.exists(self.data_file_path + file_extension):
+            the_file = openReadFile(self.data_file_path, file_extension)
+            for line in iter(the_file.readline, b""):
+                line_items = line.rstrip(b"\n").split(b"\t")
+                group_name = line_items[0].decode()
+
+                group_values = self.parse_comma_values(line_items[1].decode(), None, max_num)
+                if len(group_values) > max_num:
+                    group_values = None
+                group_dict[group_name] = group_values
+
+            the_file.close()
+
+        return group_dict
+
+    def search_group(self, group_name, search_str=None, max_num=100):
+        return self.parse_values_for_group(".groupnames", group_name, search_str, max_num)
+
     ########################################################################
     # Treat these as private functions.
     ########################################################################
@@ -231,6 +258,33 @@ class DataSetParser:
             # See https://stackoverflow.com/questions/18591778/how-to-pass-an-operator-to-a-python-function
             if operator_dict[the_filter.operator](fastnumbers.float(value), the_filter.query_value):
                 yield row_index
+
+    def parse_values_for_group(self, file_extension, group_name, search_str, max_num):
+        values = []
+
+        if os.path.exists(self.data_file_path + file_extension):
+            pattern = b"^" + re.escape(group_name).encode() + re.escape(b"\t")
+
+            the_file = openReadFile(self.data_file_path, file_extension)
+            for line in iter(the_file.readline, b""):
+                if re.search(pattern, line):
+                    values = self.parse_comma_values(line.rstrip(b"\n").split(b"\t")[1].decode(), search_str, max_num)
+
+                    if len(values) > max_num:
+                        values = None
+                    break
+
+            the_file.close()
+
+        return values
+
+    def parse_comma_values(self, comma_str, search_str, max_num):
+        values = isplit(comma_str, ",")
+
+        if search_str:
+            values = (x for x in values if search_str in x)
+
+        return list(islice(values, max_num + 1))
 
     def parse_indices_for_groups(self, fwf_file_path, file_extension, group_names):
         indices = set()

@@ -89,3 +89,18 @@ def get_indices_of_strings(all_strings, search_strings):
         string_index_dict[string] = i
 
     return [string_index_dict[string] for string in search_strings]
+
+# See https://stackoverflow.com/questions/3862010/is-there-a-generator-version-of-string-split-in-python
+def isplit(source, sep):
+    sepsize = len(sep)
+    start = 0
+    while True:
+        idx = source.find(sep, start)
+        if idx == -1:
+            yield source[start:]
+            return
+        yield source[start:idx]
+        start = idx + sepsize
+
+def empty_generator():
+    yield from ()

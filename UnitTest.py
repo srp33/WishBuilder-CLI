@@ -122,15 +122,29 @@ checkResultFile("Apply aliases to individual dataset", query_file_path, [[b'Samp
 parser_genes12.query([], [], [], [], ["Metabolic pathways [kegg]"], query_file_path)
 checkResultFile("Apply aliases to merged dataset", query_file_path, [[b'Sample', b'Genes1__PGM1_alias', b'Genes1__PGM2_alias', b'Genes1__PFKP_alias', b'Genes1__PMM1_alias', b'Genes1__SORD', b'Genes2__AASS'], [b'1', b'5.2', b'3.8', b'1', b'3', b'4', b'7'], [b'2', b'6.4', b'9.2', b'1', b'3', b'4', b'4']])
 
+checkResult("No groups", len(parser1.get_groups()), 0)
+checkResult("No groups - get group values", len(parser1.search_group("blah")), 0)
+checkResult("2 groups", len(parser12.get_groups()), 2)
+checkResult("2 groups - get group 1 values", parser12.search_group("1"), ['FloatA_alias', 'FloatB', 'TempA_alias', 'TempB'])
+checkResult("2 groups - get group 1 values - search", parser12.search_group("1", "F"), ['FloatA_alias', 'FloatB'])
+checkResult("2 groups - get group 1 values - search - max", parser12.search_group("1", "F", 2), ['FloatA_alias', 'FloatB'])
+checkResult("2 groups - get group 1 values - search - beyond max", parser12.search_group("1", "F", 1), None)
+
 print("Passed all tests!!")
 
 #TODO:
+#  GROUPS_JSON
+#    Build a file that indicates *genes* rather than indices for each group.
+#    get_groups()
+#    search_group()
+#    Add unit tests for these
 #  METADATA_PKL
 #    get_variable() - set to None if len is greater than 100?
 #    search_options()
-#  GROUPS_JSON
-#    get_groups() - set to None if len is greater than 100?
-#    search_group()
+#    Add unit tests for these
+#  Clean up temp files (add function for this with sleep functionality?)
+#  Add get_genesets() function.
+#TODO: Process GSE10320 using the updated code.
 #TODO: Remove commented lines from WishBuilder.py (after testing).
 #TODO: Put data in pandas DataFrame and use ShapeShifter (?) to convert to other formats.
 #TODO: Build markdown files, etc. https://github.com/ercsuh/ercsuh.github.io

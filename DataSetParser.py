@@ -78,25 +78,27 @@ class DataSetParser:
         # Read the column names
         all_column_names = readStringsFromFile(self.data_file_path, ".cn")
 
-        # Find the column names that will be queried across all filters
-        filter_column_names = []
-        for df in discrete_filters:
-            filter_column_names.append(df.column_name.encode())
-        for nf in numeric_filters:
-            filter_column_names.append(nf.column_name.encode())
+#        # Find the column names that will be queried across all filters
+#        filter_column_names = []
+#        for df in discrete_filters:
+#            filter_column_names.append(df.column_name.encode())
+#        for nf in numeric_filters:
+#            filter_column_names.append(nf.column_name.encode())
 
-        # Find the indices associated with these columns
-        filter_column_name_indices = get_indices_of_strings(all_column_names, filter_column_names)
+#        # Find the indices associated with these columns
+#        filter_column_name_indices = get_indices_of_strings(all_column_names, filter_column_names)
 
         # Find rows that match discrete filtering criteria
         keep_row_indices = range(num_rows)
         for df in discrete_filters:
-            keep_row_indices = self.filter_rows_discrete(keep_row_indices, df, filter_column_name_indices.pop(0), data_handle, cc_handle, mccl, ll)
+            #keep_row_indices = self.filter_rows_discrete(keep_row_indices, df, filter_column_name_indices.pop(0), data_handle, cc_handle, mccl, ll)
+            keep_row_indices = self.filter_rows_discrete(keep_row_indices, df, data_handle, cc_handle, mccl, ll)
 
         # Find rows that match numeric filtering criteria
         num_operator_dict = {">": operator.gt, "<": operator.lt, ">=": operator.ge, "<=": operator.le, "==": operator.eq, "!=": operator.ne}
         for nf in numeric_filters:
-            keep_row_indices = self.filter_rows_numeric(keep_row_indices, nf, filter_column_name_indices.pop(0), num_operator_dict, data_handle, cc_handle, mccl, ll)
+            #keep_row_indices = self.filter_rows_numeric(keep_row_indices, nf, filter_column_name_indices.pop(0), num_operator_dict, data_handle, cc_handle, mccl, ll)
+            keep_row_indices = self.filter_rows_numeric(keep_row_indices, nf, num_operator_dict, data_handle, cc_handle, mccl, ll)
 
         # Save the row indices to a file
         keep_row_indices = [str(x).encode() for x in keep_row_indices]
@@ -126,14 +128,15 @@ class DataSetParser:
             select_column_indices = range(len(column_names))
         else:
             # Find index of each individual column to be selected
-            select_columns = [x.encode() for x in select_columns]
-            select_column_indices = set([0] + get_indices_of_strings(column_names, select_columns))
+            #select_columns = [x.encode() for x in select_columns]
+            #select_column_indices = set([0] + get_indices_of_strings(column_names, select_columns))
+            select_column_indices = set([0] + select_columns)
 
             # Parse pathways and add corresponding genes to the list of columns that will be selected
             select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".pathways", select_pathways)
 
             # Find which columns to select based on groups
-            select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".groupindices", select_groups)
+            select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".groups", select_groups)
 
         select_column_indices = sorted(list(select_column_indices))
 
@@ -207,13 +210,14 @@ class DataSetParser:
 
         return num_samples, num_columns
 
-    # This function returns a dictionary where the keys are group names and
-    #   the values are the features in each group. If the group has more than
-    #   the maximum number of elements, it returns None. We will search for
+    # This function returns a dictionary where each key is a group name and
+    #   each value is a list of tuples. Each tuple will indicate the index of
+    #   a feature and the actual feature name. If a group has more than
+    #   the maximum number of elements, the value will be None. We will obtain
     #   these values later using search_group().
     def get_groups(self, max_num=100):
         group_dict = {}
-        file_extension = ".groupnames"
+        file_extension = ".groups"
 
         if os.path.exists(self.data_file_path + file_extension):
             the_file = openReadFile(self.data_file_path, file_extension)
@@ -221,7 +225,7 @@ class DataSetParser:
                 line_items = line.rstrip(b"\n").split(b"\t")
                 group_name = line_items[0].decode()
 
-                group_values = self.parse_comma_values(line_items[1].decode(), None, max_num)
+                group_values = self.parse_comma_values(line_items[1].decode(), line_items[2].decode(), None, max_num)
                 if len(group_values) > max_num:
                     group_values = None
                 group_dict[group_name] = group_values
@@ -230,25 +234,47 @@ class DataSetParser:
 
         return group_dict
 
+    # This function returns a list of tuples. Each tuple will indicate the index of
+    #   a feature and the actual feature name. If a group has more than
+    #   the maximum number of elements, this function will the maximum number.
     def search_group(self, group_name, search_str=None, max_num=100):
-        return self.parse_values_for_group(".groupnames", group_name, search_str, max_num)
+        return self.parse_values_for_group(".groups", group_name, search_str, max_num)
+
+    # This function returns a list of tuples. The first element in each tuple is the
+    #   name of a pathway. The second element in each tuple is the number of genes in
+    #   that pathway for this dataset. Each dataset may have different pathways.
+    def get_pathways(self):
+        pathways = []
+        file_extension = ".pathways"
+
+        if os.path.exists(self.data_file_path + file_extension):
+            the_file = openReadFile(self.data_file_path, file_extension)
+
+            for line in iter(the_file.readline, b""):
+                line_items = line.rstrip(b"\n").split(b"\t")
+                pathways.append((line_items[0].decode(), len(line_items[1].split(b","))))
+
+            the_file.close()
+
+        return pathways
 
     ########################################################################
     # Treat these as private functions.
     ########################################################################
 
-    def filter_rows_discrete(self, row_indices, the_filter, column_index, data_handle, cc_handle, mccl, ll):
-        query_col_coords = list(parse_data_coords([column_index], cc_handle, mccl))
+    #def filter_rows_discrete(self, row_indices, the_filter, column_index, data_handle, cc_handle, mccl, ll):
+    def filter_rows_discrete(self, row_indices, the_filter, data_handle, cc_handle, mccl, ll):
+        query_col_coords = list(parse_data_coords([the_filter.column_index], cc_handle, mccl))
 
         for row_index in row_indices:
             if next(parse_data_values(row_index, ll, query_col_coords, data_handle)).rstrip() in the_filter.values_set:
                 yield row_index
 
-    def filter_rows_numeric(self, row_indices, the_filter, column_index, operator_dict, data_handle, cc_handle, mccl, ll):
+    def filter_rows_numeric(self, row_indices, the_filter, operator_dict, data_handle, cc_handle, mccl, ll):
         if the_filter.operator not in operator_dict:
             raise Exception("Invalid operator: " + oper)
 
-        query_col_coords = list(parse_data_coords([column_index], cc_handle, mccl))
+        query_col_coords = list(parse_data_coords([the_filter.column_index], cc_handle, mccl))
 
         for row_index in row_indices:
             value = next(parse_data_values(row_index, ll, query_col_coords, data_handle)).rstrip()
@@ -268,23 +294,24 @@ class DataSetParser:
             the_file = openReadFile(self.data_file_path, file_extension)
             for line in iter(the_file.readline, b""):
                 if re.search(pattern, line):
-                    values = self.parse_comma_values(line.rstrip(b"\n").split(b"\t")[1].decode(), search_str, max_num)
-
-                    if len(values) > max_num:
-                        values = None
+                    line_items = line.rstrip(b"\n").split(b"\t")
+                    values = self.parse_comma_values(line_items[1].decode(), line_items[2].decode(), search_str, max_num)[:max_num]
                     break
 
             the_file.close()
 
         return values
 
-    def parse_comma_values(self, comma_str, search_str, max_num):
-        values = isplit(comma_str, ",")
+    def parse_comma_values(self, indices_comma_str, values_comma_str, search_str, max_num):
+        indices = (int(x) for x in isplit(indices_comma_str, ","))
+        values = isplit(values_comma_str, ",")
 
         if search_str:
-            values = (x for x in values if search_str in x)
+            indices_values = search_indices_values(indices, values, search_str)
+        else:
+            indices_values = zip(indices, values)
 
-        return list(islice(values, max_num + 1))
+        return list(islice(indices_values, max_num + 1))
 
     def parse_indices_for_groups(self, fwf_file_path, file_extension, group_names):
         indices = set()

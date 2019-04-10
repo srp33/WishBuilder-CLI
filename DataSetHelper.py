@@ -104,3 +104,10 @@ def isplit(source, sep):
 
 def empty_generator():
     yield from ()
+
+def search_indices_values(indices, values, search_str):
+    for value in values:
+        index = next(indices)
+
+        if search_str in value:
+            yield index, value

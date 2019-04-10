@@ -93,7 +93,7 @@ def convert_tsv_to_fwf(dataset_id, tsv_file_path, fwf_file_path):
     # Save pathway information
     pathway_gene_dict = build_pathway_gene_dict()
     pathway_gene_indices_dict = map_column_name_dict_to_indices(pathway_gene_dict, col_names)
-    save_column_index_map_to_file(pathway_gene_indices_dict, fwf_file_path, ".pathways")
+    save_column_index_map_to_file(fwf_file_path, ".pathways", pathway_gene_indices_dict)
 
 def parse_and_save_column_types(file_path):
     # Initialize
@@ -240,11 +240,15 @@ def save_column_names_map_to_file(map_dict, fwf_file_path, file_extension):
     if len(output) > 0:
         writeStringToFile(fwf_file_path, file_extension, output)
 
-def save_column_index_map_to_file(map_dict, fwf_file_path, file_extension):
+def save_column_index_map_to_file(fwf_file_path, file_extension, index_dict, value_dict=None):
     output = b""
 
-    for name, indices in map_dict.items():
-        output += "{}\t{}\n".format(name.decode(), ",".join([str(i) for i in indices])).encode()
+    for name, indices in index_dict.items():
+        values = ""
+        if value_dict:
+            values = ",".join([x.decode() for x in value_dict[name]])
+
+        output += "{}\t{}\t{}\n".format(name.decode(), ",".join([str(i) for i in indices]), values).encode()
 
     if len(output) > 0:
         writeStringToFile(fwf_file_path, file_extension, output)
@@ -375,12 +379,11 @@ def merge_fwf_files(in_file_paths, out_file_path):
 
     # Save pathway gene indices to file
     pathway_gene_indices_dict = map_column_name_dict_to_indices(merged_pathway_gene_dict, original_column_names)
-    save_column_index_map_to_file(pathway_gene_indices_dict, out_file_path, ".pathways")
+    save_column_index_map_to_file(out_file_path, ".pathways", pathway_gene_indices_dict)
 
     # Save group names and indices to file
-    save_column_names_map_to_file(group_dict, out_file_path, ".groupnames")
     group_indices_dict = map_column_name_dict_to_indices(group_dict, original_column_names)
-    save_column_index_map_to_file(group_indices_dict, out_file_path, ".groupindices")
+    save_column_index_map_to_file(out_file_path, ".groups", group_indices_dict, group_dict)
 
     # Calculate the column types and descriptions for the merged data
     column_types = [b"i"] # This is the Sample column

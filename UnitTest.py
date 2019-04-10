@@ -145,17 +145,25 @@ checkResult("Pathways genes1", len(parser_genes1.get_pathways()), 36)
 checkResult("Pathways genes12", len(parser_genes12.get_pathways()), 63)
 checkResult("Pathways genes12 - element", parser_genes12.get_pathways()[0], ('Glycolysis / Gluconeogenesis [kegg]', 3))
 
+checkResult("Get sample column meta", parser1.get_variable_meta(0), (4, ['1', '2', '3', '4']))
+checkResult("Get num column meta", parser1.get_variable_meta(1), (1.1, 4.4))
+checkResult("Get discrete column meta", parser1.get_variable_meta(3), (3, ['High', 'Low', 'Med']))
+checkResult("Get discrete column meta - beyond max", parser1.get_variable_meta(3, max_discrete_options=2), (3, None))
+
+checkResult("Check sample column options", parser1.search_discrete_variable_options(0, search_str=None, max_discrete_options=100), ['1', '2', '3', '4'])
+checkResult("Check sample column options - max", parser1.search_discrete_variable_options(0, search_str=None, max_discrete_options=4), ['1', '2', '3', '4'])
+checkResult("Check sample column options - beyond max", parser1.search_discrete_variable_options(0, search_str=None, max_discrete_options=2), ['1', '2'])
+checkResult("Check sample column options - search", parser1.search_discrete_variable_options(3, search_str="d", max_discrete_options=2), ['Med'])
+
+parser1.clean_up(max_age_seconds=0)
+parser1.save_sample_indices_matching_filters([], [])
+#time.sleep(1)
+checkResult("Clean up", parser1.clean_up(max_age_seconds=0), 1)
+
 print("Passed all tests!!")
 
 #TODO:
-#  METADATA_PKL
-#    get_variable() - set to None if len is greater than 100?
-#    search_options()
-#    Add unit tests for these
-#  get_variable_type()
-#  clean_up() - Iterate through temp directory and delete any file that is older than 15 minutes.
-#  Provide a way to stream the file?
-#  Find any functions that are no longer needed in DataSetParser.
+#  Provide a way to stream a file?
 #TODO: Process GSE10320 using the updated code.
 #TODO: Remove commented lines from WishBuilder.py (after testing).
 #TODO: Put data in pandas DataFrame and use ShapeShifter (?) to convert to other formats.

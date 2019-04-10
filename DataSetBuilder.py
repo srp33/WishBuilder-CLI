@@ -1,6 +1,5 @@
 import gzip
 import fastnumbers
-import json
 import mmap
 import os
 import shutil
@@ -146,26 +145,22 @@ def parse_column_type(values):
     return b"n" # Numeric
 
 def get_column_description(column_type, column_values):
-    if column_type == b"i":
-        meta_dict = {"options": ["ID"], "numOptions": len(column_values)}
-    elif column_type == b"n":
+    if column_type == b"n":
         float_values = [float(x) for x in column_values if len(x) > 0]
-        meta_dict = {"options": "continuous", "min": min(float_values), "max": max(float_values)}
-    else:
-        if len(column_values) == 0:
-            meta_dict = {"options": ["NA"], "numOptions": 1}
-        else:
-            unique_values = sorted([x.decode() for x in set(column_values)])
-            meta_dict = {"options": unique_values, "numOptions": len(unique_values)}
+        return "{:.8f},{:.8f}".format(min(float_values), max(float_values)).encode()
 
-    return json.dumps(meta_dict).encode()
+    if len(column_values) == 0:
+        return "1|NA".encode()
+    else:
+        unique_values = sorted([x.decode() for x in set(column_values)])
+        return "{}|{}".format(len(unique_values), ",".join(unique_values)).encode()
 
 def format_string(x, size):
     formatted = "{:<" + str(size) + "}"
     return formatted.format(x.decode()).encode()
 
 def getMaxStringLength(the_list):
-    return max([len(str(x)) for x in set(the_list)])
+    return max([len(x) for x in set(the_list)])
 
 def buildStringMap(the_list):
     # Find maximum length of value

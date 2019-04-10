@@ -1,4 +1,5 @@
 import fastnumbers
+import glob
 from itertools import islice
 import mmap
 import operator
@@ -78,31 +79,19 @@ class DataSetParser:
         # Read the column names
         all_column_names = readStringsFromFile(self.data_file_path, ".cn")
 
-#        # Find the column names that will be queried across all filters
-#        filter_column_names = []
-#        for df in discrete_filters:
-#            filter_column_names.append(df.column_name.encode())
-#        for nf in numeric_filters:
-#            filter_column_names.append(nf.column_name.encode())
-
-#        # Find the indices associated with these columns
-#        filter_column_name_indices = get_indices_of_strings(all_column_names, filter_column_names)
-
         # Find rows that match discrete filtering criteria
         keep_row_indices = range(num_rows)
         for df in discrete_filters:
-            #keep_row_indices = self.filter_rows_discrete(keep_row_indices, df, filter_column_name_indices.pop(0), data_handle, cc_handle, mccl, ll)
             keep_row_indices = self.filter_rows_discrete(keep_row_indices, df, data_handle, cc_handle, mccl, ll)
 
         # Find rows that match numeric filtering criteria
         num_operator_dict = {">": operator.gt, "<": operator.lt, ">=": operator.ge, "<=": operator.le, "==": operator.eq, "!=": operator.ne}
         for nf in numeric_filters:
-            #keep_row_indices = self.filter_rows_numeric(keep_row_indices, nf, filter_column_name_indices.pop(0), num_operator_dict, data_handle, cc_handle, mccl, ll)
             keep_row_indices = self.filter_rows_numeric(keep_row_indices, nf, num_operator_dict, data_handle, cc_handle, mccl, ll)
 
         # Save the row indices to a file
         keep_row_indices = [str(x).encode() for x in keep_row_indices]
-        temp_file_path = generate_temp_file_path()
+        temp_file_path = self.generate_temp_file_path()
         with open(temp_file_path, "wb") as temp_file:
             temp_file.write(b"\n".join(keep_row_indices))
 
@@ -127,26 +116,23 @@ class DataSetParser:
         if len(select_columns) == 0 and len(select_groups) == 0 and len(select_pathways) == 0:
             select_column_indices = range(len(column_names))
         else:
-            # Find index of each individual column to be selected
-            #select_columns = [x.encode() for x in select_columns]
-            #select_column_indices = set([0] + get_indices_of_strings(column_names, select_columns))
             select_column_indices = set([0] + select_columns)
 
             # Parse pathways and add corresponding genes to the list of columns that will be selected
-            select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".pathways", select_pathways)
+            select_column_indices = select_column_indices | self.parse_indices_for_groups(".pathways", select_pathways)
 
             # Find which columns to select based on groups
-            select_column_indices = select_column_indices | self.parse_indices_for_groups(self.data_file_path, ".groups", select_groups)
+            select_column_indices = select_column_indices | self.parse_indices_for_groups(".groups", select_groups)
 
         select_column_indices = sorted(list(select_column_indices))
 
         # Save the column indices to a file
-        temp_file_path_indices = generate_temp_file_path()
+        temp_file_path_indices = self.generate_temp_file_path()
         with open(temp_file_path_indices, "wb") as temp_file:
             temp_file.write(b"\n".join([str(i).encode() for i in select_column_indices]))
 
         # Save the column names to a file
-        temp_file_path_names = generate_temp_file_path()
+        temp_file_path_names = self.generate_temp_file_path()
         with open(temp_file_path_names, "wb") as temp_file:
             temp_file.write(b"\t".join([column_names[i] for i in select_column_indices]))
 
@@ -258,11 +244,57 @@ class DataSetParser:
 
         return pathways
 
+    # This function returns metadata for a given variable. If it is a numeric
+    #   variable, it returns the min and max values. If it is a discrete
+    #   variable, it returns the list of options (or None if there are too many).
+    def get_variable_meta(self, column_index, max_discrete_options=100):
+        description_raw = self.get_variable_description(column_index)
+        description_parts = description_raw.split("|")
+
+        if len(description_parts) == 1: # It is a numeric variable
+            min_max = [float(x) for x in description_parts[0].split(",")]
+            return min_max[0], min_max[1]
+
+        discrete_options = list(islice(self.isplit(description_parts[1], ","), max_discrete_options + 1))
+
+        if len(discrete_options) > max_discrete_options:
+            return int(description_parts[0]), None
+
+        return int(description_parts[0]), discrete_options
+
+    # This function returns options for the specified discrete variable.
+    def search_discrete_variable_options(self, column_index, search_str=None, max_discrete_options=100):
+        description_raw = self.get_variable_description(column_index)
+        description_parts = description_raw.split("|")
+
+        matches = self.isplit(description_parts[1], ",")
+        if search_str:
+            matches = (x for x in self.isplit(description_parts[1], ",") if search_str in x)
+
+        return list(islice(matches, max_discrete_options))
+
+    # For now, this function is a bit of a hack (for lack of a better idea).
+    #   It looks through the temp directory and deletes any file that is older
+    #   than 15 minutes. It returns the number of files that were deleted.
+    def clean_up(self, max_age_seconds=900):
+        temp_dir_path = self.get_temp_dir_path()
+
+        num_deleted = 0
+
+        if os.path.exists(temp_dir_path):
+            for file_path in glob.glob(temp_dir_path + "*"):
+                age_seconds = self.get_file_age_seconds(file_path)
+
+                if age_seconds > max_age_seconds:
+                    os.remove(file_path)
+                    num_deleted += 1
+
+        return num_deleted
+
     ########################################################################
     # Treat these as private functions.
     ########################################################################
 
-    #def filter_rows_discrete(self, row_indices, the_filter, column_index, data_handle, cc_handle, mccl, ll):
     def filter_rows_discrete(self, row_indices, the_filter, data_handle, cc_handle, mccl, ll):
         query_col_coords = list(parse_data_coords([the_filter.column_index], cc_handle, mccl))
 
@@ -303,8 +335,8 @@ class DataSetParser:
         return values
 
     def parse_comma_values(self, indices_comma_str, values_comma_str, search_str, max_num):
-        indices = (int(x) for x in isplit(indices_comma_str, ","))
-        values = isplit(values_comma_str, ",")
+        indices = (int(x) for x in self.isplit(indices_comma_str, ","))
+        values = self.isplit(values_comma_str, ",")
 
         if search_str:
             indices_values = search_indices_values(indices, values, search_str)
@@ -313,11 +345,11 @@ class DataSetParser:
 
         return list(islice(indices_values, max_num + 1))
 
-    def parse_indices_for_groups(self, fwf_file_path, file_extension, group_names):
+    def parse_indices_for_groups(self, file_extension, group_names):
         indices = set()
 
-        if os.path.exists(fwf_file_path + file_extension):
-            my_file = openReadFile(fwf_file_path, file_extension)
+        if os.path.exists(self.data_file_path + file_extension):
+            my_file = openReadFile(self.data_file_path, file_extension)
 
             for group_name in group_names:
                 pattern = b"^" + re.escape(group_name).encode() + re.escape(b"\t")
@@ -328,3 +360,42 @@ class DataSetParser:
             my_file.close()
 
         return indices
+
+    def get_variable_description(self, column_index):
+        cd_handle = openReadFile(self.data_file_path, ".cd")
+        mcdl = readIntFromFile(self.data_file_path, ".mcdl")
+        description = next(parse_data_values(column_index, mcdl + 1, [[0, 0, mcdl]], cd_handle)).rstrip().decode()
+        cd_handle.close()
+
+        return description
+
+    def get_temp_dir_path(self, sub_dir_name="Geney"):
+        return tempfile.gettempdir() + "/" + sub_dir_name + "/"
+
+    def generate_temp_file_path(self):
+        sub_dir_path = self.get_temp_dir_path()
+
+        if not os.path.exists(sub_dir_path):
+            os.mkdir(sub_dir_path)
+
+        # This checks to make sure the path is unique before returning it (just in case).
+        candidate_path = sub_dir_path + next(tempfile._get_candidate_names())
+        while os.path.exists(candidate_path):
+            candidate_path = sub_dir_path + next(tempfile._get_candidate_names())
+
+        return candidate_path
+
+    def get_file_age_seconds(self, file_path):
+        return time.time() - os.path.getmtime(file_path)
+
+    # See https://stackoverflow.com/questions/3862010/is-there-a-generator-version-of-string-split-in-python
+    def isplit(self, source, sep):
+        sepsize = len(sep)
+        start = 0
+        while True:
+            idx = source.find(sep, start)
+            if idx == -1:
+                yield source[start:]
+                return
+            yield source[start:idx]
+            start = idx + sepsize

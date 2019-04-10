@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 
 def parse_data_coords(line_indices, coords_file, coords_file_max_length):
     out_dict = {}
@@ -59,14 +60,6 @@ def openReadFile(file_path, file_extension=""):
 def parse_meta_value(handle, length, col_index):
     return next(parse_data_values(col_index, length + 1, [(col_index, 0, length)], handle))
 
-def generate_temp_file_path():
-    candidate_path = tempfile.gettempdir() + "/" + next(tempfile._get_candidate_names())
-
-    while os.path.exists(candidate_path):
-        candidate_path = tempfile.gettempdir() + "/" + next(tempfile._get_candidate_names())
-
-    return candidate_path
-
 def writeStringToFile(file_path, file_extension, the_string):
     with open(file_path + file_extension, 'wb') as the_file:
         the_file.write(the_string)
@@ -82,25 +75,13 @@ def countFileLines(file_path, file_extension=""):
 
 # I ran some informal benchmarks, and this seems to be much faster than
 #   other ways that I tried.
-def get_indices_of_strings(all_strings, search_strings):
-    string_index_dict = {}
-
-    for i, string in enumerate(all_strings):
-        string_index_dict[string] = i
-
-    return [string_index_dict[string] for string in search_strings]
-
-# See https://stackoverflow.com/questions/3862010/is-there-a-generator-version-of-string-split-in-python
-def isplit(source, sep):
-    sepsize = len(sep)
-    start = 0
-    while True:
-        idx = source.find(sep, start)
-        if idx == -1:
-            yield source[start:]
-            return
-        yield source[start:idx]
-        start = idx + sepsize
+#def get_indices_of_strings(all_strings, search_strings):
+#    string_index_dict = {}
+#
+#    for i, string in enumerate(all_strings):
+#        string_index_dict[string] = i
+#
+#    return [string_index_dict[string] for string in search_strings]
 
 def empty_generator():
     yield from ()

@@ -209,7 +209,7 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         for f in glob.glob("{}.*".format(fwf_files[0])):
             os.system("mv {} {}{}".format(f, merged_file, parse_file_ext(f)))
 
-        apply_aliases(tsv_files[0], fwf_files[0])
+#        apply_aliases(tsv_files[0], fwf_files[0])
 
 #        os.system("mv {} {}".format(tsv_map_dirs[0], merged_map_dir))
 
@@ -221,8 +221,8 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
         merge_fwf_files(fwf_files, merged_file)
         printToLog("Done creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
 
-        for i in range(len(fwf_files)):
-            apply_aliases(tsv_files[i], fwf_files[i])
+#        for i in range(len(fwf_files)):
+#            apply_aliases(tsv_files[i], fwf_files[i])
 
 #        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(tsv_files)), pr)
 #        feature_dict, num_features = merge_tsv(tsv_files, tsv_map_dirs, prefixes, merged_file, 50000)

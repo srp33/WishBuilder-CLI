@@ -7,17 +7,15 @@ import sys
 import time
 from DataSetHelper import *
 
-def convert_tsv_to_fwf(dataset_id, tsv_file_path, fwf_file_path):
-    build_metadata(dataset_id.encode(), tsv_file_path, fwf_file_path)
-
+def convert_tsv_to_fwf(tsv_file_path, fwf_file_path):
     column_size_dict = {}
     column_start_coords = []
 
     # Initialize a dictionary with the column index as key and width of the column as value
     with open(tsv_file_path, 'rb') as my_file:
-        col_names = my_file.readline().rstrip(b"\n").split(b"\t")
+        column_names = my_file.readline().rstrip(b"\n").split(b"\t")
 
-        for i in range(len(col_names)):
+        for i in range(len(column_names)):
             column_size_dict[i] = 0
 
     # Iterate through the lines to find the max width of each column
@@ -34,22 +32,22 @@ def convert_tsv_to_fwf(dataset_id, tsv_file_path, fwf_file_path):
                 column_size_dict[i] = max([column_size_dict[i], len(line_items[i])])
 
     # Calculate the length of the first line (and thus all the other lines)
-    line_length = sum([column_size_dict[i] for i in range(len(col_names))])
+    line_length = sum([column_size_dict[i] for i in range(len(column_names))])
 
     # Save value that indicates line length
     writeStringToFile(fwf_file_path, ".ll", str(line_length + 1).encode())
 
     # Calculate the positions where each column starts
     cumulative_position = 0
-    for i in range(len(col_names)):
+    for i in range(len(column_names)):
         column_size = column_size_dict[i]
         column_start_coords.append(str(cumulative_position).encode())
         cumulative_position += column_size
     column_start_coords.append(str(cumulative_position).encode())
 
     # Build a map of the column names and save this to a file
-    col_names_string, max_col_name_length = buildStringMap([x for x in col_names])
-    writeStringToFile(fwf_file_path, ".cn", col_names_string)
+    column_names_string, max_col_name_length = buildStringMap([x for x in column_names])
+    writeStringToFile(fwf_file_path, ".cn", column_names_string)
     writeStringToFile(fwf_file_path, ".mcnl", max_col_name_length)
 
     # Calculate the column coordinates and max length of these coordinates
@@ -63,7 +61,7 @@ def convert_tsv_to_fwf(dataset_id, tsv_file_path, fwf_file_path):
 
     # Save number of rows and cols
     writeStringToFile(fwf_file_path, ".nrow", str(num_rows).encode())
-    writeStringToFile(fwf_file_path, ".ncol", str(len(col_names)).encode())
+    writeStringToFile(fwf_file_path, ".ncol", str(len(column_names)).encode())
 
     # Save the data to output file
     with open(tsv_file_path, 'rb') as my_file:
@@ -89,9 +87,16 @@ def convert_tsv_to_fwf(dataset_id, tsv_file_path, fwf_file_path):
     # Save alias information
     apply_aliases(build_alias_dict(tsv_file_path), fwf_file_path)
 
+    # Save group names and indices to file
+    in_file_extension = os.path.splitext(tsv_file_path)[1]
+    group_name = os.path.basename(tsv_file_path).replace(in_file_extension, "").encode()
+    group_indices_dict = {group_name: list(range(1, len(column_names)))}
+    group_dict = {group_name: column_names[1:]}
+    save_column_index_map_to_file(fwf_file_path, ".groups", group_indices_dict, group_dict)
+
     # Save pathway information
     pathway_gene_dict = build_pathway_gene_dict()
-    pathway_gene_indices_dict = map_column_name_dict_to_indices(pathway_gene_dict, col_names)
+    pathway_gene_indices_dict = map_column_name_dict_to_indices(pathway_gene_dict, column_names)
     save_column_index_map_to_file(fwf_file_path, ".pathways", pathway_gene_indices_dict)
 
 def parse_and_save_column_types(file_path):
@@ -225,15 +230,6 @@ def map_column_name_dict_to_indices(the_dict, column_names):
             map_dict[name] = overlapping_gene_indices
 
     return map_dict
-
-def save_column_names_map_to_file(map_dict, fwf_file_path, file_extension):
-    output = b""
-
-    for name, values in map_dict.items():
-        output += "{}\t{}\n".format(name.decode(), ",".join([x.decode() for x in values])).encode()
-
-    if len(output) > 0:
-        writeStringToFile(fwf_file_path, file_extension, output)
 
 def save_column_index_map_to_file(fwf_file_path, file_extension, index_dict, value_dict=None):
     output = b""
@@ -430,9 +426,11 @@ def parse_yaml_entry(yaml_file, entry):
 
     return value
 
-def build_metadata(dataset_id, tsv_file_path, fwf_file_path):
-    md_file_path = tsv_file_path + ".description.md"
-    yaml_file_path = tsv_file_path + ".config.yaml"
+def build_metadata(data_dir_path, fwf_file_path):
+    dataset_id = os.path.basename(data_dir_path)
+
+    md_file_path = data_dir_path + "/description.md"
+    yaml_file_path = data_dir_path + "/config.yaml"
 
     with open(md_file_path, 'rb') as md_file:
         writeStringToFile(fwf_file_path, ".description", md_file.read().strip())
@@ -441,5 +439,5 @@ def build_metadata(dataset_id, tsv_file_path, fwf_file_path):
         for entry in ("title", "featureDescription", "featureDescriptionPlural"):
             writeStringToFile(fwf_file_path, "." + entry, parse_yaml_entry(yaml_file, entry))
 
-    writeStringToFile(fwf_file_path, ".id", dataset_id)
+    writeStringToFile(fwf_file_path, ".id", dataset_id.encode())
     writeStringToFile(fwf_file_path, ".timestamp", str(time.time()).encode())

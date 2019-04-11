@@ -42,7 +42,7 @@ class DataSetParser:
     @property
     def description(self) -> str:
         if self.__description == None:
-            self.__description = readStringFromFile(self.data_file_path, ".desc").decode()
+            self.__description = readStringFromFile(self.data_file_path, ".description").decode()
         return self.__description
 
     @property

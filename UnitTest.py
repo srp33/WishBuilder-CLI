@@ -49,13 +49,20 @@ parser_genes1 = DataSetParser(fwf_file_path_genes_1)
 parser_genes2 = DataSetParser(fwf_file_path_genes_2)
 parser_genes12 = DataSetParser(merged_genes_file_path)
 
-convert_tsv_to_fwf("Test1", tsv_file_path_1, fwf_file_path_1)
-convert_tsv_to_fwf("Test2", tsv_file_path_2, fwf_file_path_2)
-convert_tsv_to_fwf("Genes1", tsv_file_path_genes_1, fwf_file_path_genes_1)
-convert_tsv_to_fwf("Genes2", tsv_file_path_genes_2, fwf_file_path_genes_2)
+convert_tsv_to_fwf(tsv_file_path_1, fwf_file_path_1)
+convert_tsv_to_fwf(tsv_file_path_2, fwf_file_path_2)
+convert_tsv_to_fwf(tsv_file_path_genes_1, fwf_file_path_genes_1)
+convert_tsv_to_fwf(tsv_file_path_genes_2, fwf_file_path_genes_2)
 
 merge_fwf_files([fwf_file_path_1, fwf_file_path_2], merged_file_path)
 merge_fwf_files([fwf_file_path_genes_1, fwf_file_path_genes_2], merged_genes_file_path)
+
+build_metadata("TestData/Test1", fwf_file_path_1)
+build_metadata("TestData/Test2", fwf_file_path_2)
+build_metadata("TestData/Genes1", fwf_file_path_genes_1)
+build_metadata("TestData/Genes2", fwf_file_path_genes_2)
+build_metadata("TestData/Test1", merged_file_path)
+build_metadata("TestData/Genes1", merged_genes_file_path)
 
 checkResult("ID", parser1.id, "Test1")
 checkResult("Title 1", parser1.title, "This is the title1")
@@ -130,8 +137,9 @@ checkResultFile("Apply aliases to individual dataset", query_file_path, [[b'Samp
 parser_genes12.query([], [], [], [], ["Metabolic pathways [kegg]"], query_file_path)
 checkResultFile("Apply aliases to merged dataset", query_file_path, [[b'Sample', b'Genes1__PGM1_alias', b'Genes1__PGM2_alias', b'Genes1__PFKP_alias', b'Genes1__PMM1_alias', b'Genes1__SORD', b'Genes2__AASS'], [b'1', b'5.2', b'3.8', b'1', b'3', b'4', b'7'], [b'2', b'6.4', b'9.2', b'1', b'3', b'4', b'4']])
 
-checkResult("No groups", len(parser1.get_groups()), 0)
-checkResult("No groups - group values", len(parser1.search_group("blah")), 0)
+checkResult("1 group", len(parser1.get_groups()), 1)
+checkResult("1 group - search - no match", len(parser1.search_group("data", "blah")), 0)
+checkResult("1 group - search - match", len(parser1.search_group("data", "Float")), 2)
 checkResult("2 groups", len(parser12.get_groups()), 2)
 checkResult("2 groups - group 1 values", parser12.search_group("1"), [(1, 'FloatA_alias'), (2, 'FloatB'), (3, 'TempA_alias'), (4, 'TempB')])
 checkResult("2 groups - group 1 values - search", parser12.search_group("1", "F"), [(1, 'FloatA_alias'), (2, 'FloatB')])
@@ -157,7 +165,6 @@ checkResult("Check sample column options - search", parser1.search_discrete_vari
 
 parser1.clean_up(max_age_seconds=0)
 parser1.save_sample_indices_matching_filters([], [])
-#time.sleep(1)
 checkResult("Clean up", parser1.clean_up(max_age_seconds=0), 1)
 
 print("Passed all tests!!")

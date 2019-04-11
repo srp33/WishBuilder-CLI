@@ -202,12 +202,13 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
 
 #    merged_file = os.path.join(geney_dataset_path, "data.tsv")
 #    merged_map_dir = os.path.join(geney_dataset_path, "data.mp")
-    merged_file = os.path.join(geney_dataset_path, "data.fwf")
+    out_data_file_path = os.path.join(geney_dataset_path, "data.fwf")
 
     if len(fwf_files) == 1:
-        os.system("mv {} {}".format(fwf_files[0], merged_file))
+        os.system("mv {} {}".format(fwf_files[0], out_data_file_path))
         for f in glob.glob("{}.*".format(fwf_files[0])):
-            os.system("mv {} {}{}".format(f, merged_file, parse_file_ext(f)))
+            os.system("mv {} {}{}".format(f, out_data_file_path, parse_file_ext(f)))
+        build_metadata(cwd, out_data_file_path)
 
 #        apply_aliases(tsv_files[0], fwf_files[0])
 
@@ -217,9 +218,10 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
 #        feature_dict = {tsv_map_dirs[0]: features}
 #        num_features = len(features)
     else:
-        printToLog("Creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
-        merge_fwf_files(fwf_files, merged_file)
-        printToLog("Done creating merged file {} from {}".format(merged_file, " and ".join(fwf_files)), pr)
+        printToLog("Creating merged file {} from {}".format(out_data_file_path, " and ".join(fwf_files)), pr)
+        merge_fwf_files(fwf_files, out_data_file_path)
+        build_metadata(cwd, out_data_file_path)
+        printToLog("Done creating merged file {} from {}".format(out_data_file_path, " and ".join(fwf_files)), pr)
 
 #        for i in range(len(fwf_files)):
 #            apply_aliases(tsv_files[i], fwf_files[i])

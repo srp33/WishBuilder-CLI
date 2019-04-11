@@ -83,9 +83,6 @@ def countFileLines(file_path, file_extension=""):
 #
 #    return [string_index_dict[string] for string in search_strings]
 
-def empty_generator():
-    yield from ()
-
 def search_indices_values(indices, values, search_str):
     for value in values:
         index = next(indices)

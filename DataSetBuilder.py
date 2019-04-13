@@ -84,9 +84,6 @@ def convert_tsv_to_fwf(tsv_file_path, fwf_file_path):
 
     parse_and_save_column_types(fwf_file_path)
 
-    # Save alias information
-    apply_aliases(build_alias_dict(tsv_file_path), fwf_file_path)
-
     # Save group names and indices to file
     in_file_extension = os.path.splitext(tsv_file_path)[1]
     group_name = os.path.basename(tsv_file_path).replace(in_file_extension, "").encode()
@@ -95,9 +92,10 @@ def convert_tsv_to_fwf(tsv_file_path, fwf_file_path):
     save_column_index_map_to_file(fwf_file_path, ".groups", group_indices_dict, group_dict)
 
     # Save pathway information
-    pathway_gene_dict = build_pathway_gene_dict()
-    pathway_gene_indices_dict = map_column_name_dict_to_indices(pathway_gene_dict, column_names)
-    save_column_index_map_to_file(fwf_file_path, ".pathways", pathway_gene_indices_dict)
+    alias_dict = build_alias_dict(tsv_file_path)
+    pathway_gene_indices_dict = map_pathway_dict_to_column_indices(column_names, alias_dict)
+    if len(pathway_gene_indices_dict) > 0:
+        save_column_index_map_to_file(fwf_file_path, ".pathways", pathway_gene_indices_dict)
 
 def parse_and_save_column_types(file_path):
     # Initialize
@@ -150,6 +148,9 @@ def parse_column_type(values):
     return b"n" # Numeric
 
 def get_column_description(column_type, column_values):
+    if column_type == b"i":
+        return b"1|ID" # At least for now, we don't want to store all the IDs in the description file.
+
     if column_type == b"n":
         float_values = [float(x) for x in column_values if len(x) > 0]
         return "{:.8f},{:.8f}".format(min(float_values), max(float_values)).encode()
@@ -194,13 +195,14 @@ def parse_row_for_sample(meta, sample_id, col_coords):
         # Fill in missing data points with spaces
         return b"".join([b" " * (coords[2] - coords[1]) for coords in col_coords])
 
-def build_pathway_gene_dict():
+def build_gene_pathways_dict():
     in_gmt_file_url = "https://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.gmt.gz"
     in_gmt_file_path = "/tmp/{}".format(os.path.basename(in_gmt_file_url))
     if not os.path.exists(in_gmt_file_path):
         os.system("wget -O {} {}".format(in_gmt_file_path, in_gmt_file_url))
 
-    pathway_dict = {}
+    gene_pathways_dict = {}
+    pathways = set()
 
     with gzip.open(in_gmt_file_path, 'rb') as in_gmt_file:
         for line in in_gmt_file:
@@ -208,14 +210,45 @@ def build_pathway_gene_dict():
 
             data_source = line_items[1].split(b";")[1].replace(b"datasource: ", b"").strip()
             pathway_name = line_items[1].split(b";")[0].replace(b"name: ", b"").strip() + b" [" + data_source + b"]"
+            genes = line_items[2:]
 
-            pathway_dict[pathway_name] = line_items[2:]
+            # I don't think it makes sense to call something a pathway if there is only one gene
+            if len(genes) < 2:
+                continue
 
-    return pathway_dict
+            for gene in genes:
+                if gene not in gene_pathways_dict:
+                    gene_pathways_dict[gene] = set()
+                gene_pathways_dict[gene].add(pathway_name)
+
+                pathways.add(pathway_name)
+
+    return gene_pathways_dict, pathways
 
 def parse_column_names(fwf_file_path):
     with open(fwf_file_path + ".cn", "rb") as cn_file:
         return [x.rstrip() for x in cn_file]
+
+def map_pathway_dict_to_column_indices(column_names, alias_dict):
+    gene_pathways_dict, pathways = build_gene_pathways_dict()
+    pathway_gene_indices_dict = {pathway:set() for pathway in pathways}
+
+    for i, column_name in enumerate(column_names):
+        alias = alias_dict.get(column_name, "")
+
+        if column_name in gene_pathways_dict:
+            for pathway in gene_pathways_dict[column_name]:
+                pathway_gene_indices_dict[pathway].add(i)
+        elif alias in gene_pathways_dict:
+            for pathway in gene_pathways_dict[alias]:
+                pathway_gene_indices_dict[pathway].add(i)
+
+    pathway_gene_indices_dict2 = {}
+    for pathway, gene_indices in pathway_gene_indices_dict.items():
+        if len(gene_indices) > 0:
+            pathway_gene_indices_dict2[pathway] = sorted(list(pathway_gene_indices_dict[pathway]))
+
+    return pathway_gene_indices_dict2
 
 def map_column_name_dict_to_indices(the_dict, column_names):
     map_dict = {}
@@ -234,12 +267,15 @@ def map_column_name_dict_to_indices(the_dict, column_names):
 def save_column_index_map_to_file(fwf_file_path, file_extension, index_dict, value_dict=None):
     output = b""
 
-    for name, indices in index_dict.items():
+    for name, indices in sorted(index_dict.items()):
         values = ""
-        if value_dict:
+        if value_dict and name in value_dict and len(value_dict[name]) > 0:
             values = ",".join([x.decode() for x in value_dict[name]])
 
-        output += "{}\t{}\t{}\n".format(name.decode(), ",".join([str(i) for i in indices]), values).encode()
+        if values == "":
+            output += "{}\t{}\n".format(name.decode(), ",".join([str(i) for i in indices])).encode()
+        else:
+            output += "{}\t{}\t{}\n".format(name.decode(), ",".join([str(i) for i in indices]), values).encode()
 
     if len(output) > 0:
         writeStringToFile(fwf_file_path, file_extension, output)
@@ -255,24 +291,6 @@ def build_alias_dict(tsv_file_path):
                 alias_dict[line_items[0]] = line_items[1]
 
     return alias_dict
-
-def apply_aliases(alias_dict, fwf_file_path):
-    with open(fwf_file_path + ".cn", "rb") as cn_file:
-        new_names = rename_using_aliases([x.rstrip() for x in cn_file], alias_dict)
-
-    column_names_string, max_column_names_length = buildStringMap(new_names)
-    writeStringToFile(fwf_file_path, ".cn", column_names_string)
-    writeStringToFile(fwf_file_path, ".mcnl", max_column_names_length)
-
-def rename_using_aliases(column_names, alias_dict):
-    new_names = []
-    for x in column_names:
-        if x in alias_dict:
-            new_names.append(alias_dict[x])
-        else:
-            new_names.append(x)
-
-    return new_names
 
 def merge_fwf_files(in_file_paths, out_file_path):
     in_file_paths = sorted(in_file_paths)
@@ -378,7 +396,8 @@ def merge_fwf_files(in_file_paths, out_file_path):
 
     # Calculate the column types and descriptions for the merged data
     column_types = [b"i"] # This is the Sample column
-    column_descriptions = [parse_meta_value(in_file_meta[in_file_path]["cd_handle"], in_file_meta[in_file_path]["mcdl"], col_index)]
+    column_descriptions = [get_column_description(b"i", all_sample_ids)]
+
     for in_file_path in in_file_paths:
         for col_index in range(1, in_file_meta[in_file_path]["data_num_cols"]):
             column_types.append(parse_meta_value(in_file_meta[in_file_path]["ct_handle"], in_file_meta[in_file_path]["mctl"], col_index))

@@ -74,10 +74,9 @@ class DataSetParser:
         cc_handle = openReadFile(self.data_file_path, ".cc")
         mccl = readIntFromFile(self.data_file_path, ".mccl")
         num_rows = self.num_samples
-        cn_handle = openReadFile(self.data_file_path, ".cn")
 
         # Read the column names
-        all_column_names = readStringsFromFile(self.data_file_path, ".cn")
+        all_column_names = get_column_names(self.data_file_path)
 
         # Find rows that match discrete filtering criteria
         keep_row_indices = range(num_rows)
@@ -97,7 +96,6 @@ class DataSetParser:
 
         data_handle.close()
         cc_handle.close()
-        cn_handle.close()
 
         return len(keep_row_indices), temp_file_path
 
@@ -263,6 +261,7 @@ class DataSetParser:
         return int(description_parts[0]), discrete_options
 
     # This function returns options for the specified discrete variable.
+    # Note: If you search for options for the Sample column, it will just return "ID".
     def search_discrete_variable_options(self, column_index, search_str=None, max_discrete_options=100):
         description_raw = self.get_variable_description(column_index)
         description_parts = description_raw.split("|")

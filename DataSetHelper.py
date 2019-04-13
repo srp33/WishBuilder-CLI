@@ -89,3 +89,6 @@ def search_indices_values(indices, values, search_str):
 
         if search_str in value:
             yield index, value
+
+def get_column_names(fwf_file_path):
+    return readStringsFromFile(fwf_file_path, ".cn")

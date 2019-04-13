@@ -79,6 +79,8 @@ build_metadata("TestData/Genes1", merged_genes_file_path)
 
 checkResult("ID", parser1.id, "Test1")
 checkResult("Title 1", parser1.title, "This is the title1")
+checkResult("featureDescription 1", parser1.featureDescription, "gene")
+checkResult("featureDescriptionPlural 1", parser1.featureDescriptionPlural, "genes")
 checkResult("ID", parser2.id, "Test2")
 checkResult("Title 2", parser2.title, "This is the title2")
 checkResult("Num samples 1", parser1.num_samples, 4)

@@ -16,6 +16,8 @@ class DataSetParser:
         self.__id = None
         self.__timestamp = None
         self.__description = None
+        self.__featureDescription = None
+        self.__featureDescriptionPlural = None
         self.__title = None
         self.__num_samples = None
         self.__num_features = None
@@ -44,6 +46,18 @@ class DataSetParser:
         if self.__description == None:
             self.__description = readStringFromFile(self.data_file_path, ".description").decode()
         return self.__description
+
+    @property
+    def featureDescription(self) -> str:
+        if self.__featureDescription == None:
+            self.__featureDescription = readStringFromFile(self.data_file_path, ".featureDescription").decode()
+        return self.__featureDescription
+
+    @property
+    def featureDescriptionPlural(self) -> str:
+        if self.__featureDescriptionPlural == None:
+            self.__featureDescriptionPlural = readStringFromFile(self.data_file_path, ".featureDescriptionPlural").decode()
+        return self.__featureDescriptionPlural
 
     @property
     def num_samples(self) -> int:

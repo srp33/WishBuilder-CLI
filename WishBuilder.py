@@ -204,9 +204,6 @@ def build_geney_files(pr: PullRequest, test_dir, raw_data_storage):
     printToLog("Setting permissions on {}".format(geney_dataset_path), pr)
     os.system("chmod 777 {} -R".format(geney_dataset_path))
 
-    printToLog("Got to here!!")
-    sys.exit(1)
-
     return True
 
 def send_report(pr):

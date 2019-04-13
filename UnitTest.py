@@ -178,9 +178,6 @@ checkResult("Clean up", parser1.clean_up(max_age_seconds=0), 1)
 
 print("Passed all tests!!")
 
-#TODO: Change methods in DataSetParser to static methods.
-#TODO: Remove commented cleanup lines in WishBuilder.py.
-#TODO: Process GSE10320 using the updated code.
 #TODO: Provide a way to stream a file?
 #TODO: Put data in pandas DataFrame and use ShapeShifter (?) to convert to other formats.
 #TODO: Build markdown files, etc. https://github.com/ercsuh/ercsuh.github.io

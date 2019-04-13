@@ -31,18 +31,18 @@ def readFileIntoLists(file_path):
 
 tmp_dir = sys.argv[1]
 
-clin_tsv_path = "/Applications/GeneyWishBuilder/WishBuilder-CLI/RawDatasets/BiomarkerBenchmark_GSE10320/Clinical.tsv"
-expr_tsv_path = "/Applications/GeneyWishBuilder/WishBuilder-CLI/RawDatasets/BiomarkerBenchmark_GSE10320/Gene_Expression.tsv"
-clin_fwf_path = os.path.join(tmp_dir, os.path.basename(clin_tsv_path).replace(".tsv", ".fwf"))
-expr_fwf_path = os.path.join(tmp_dir, os.path.basename(expr_tsv_path).replace(".tsv", ".fwf"))
-merged_fwf_path = os.path.join(tmp_dir, "Merged.fwf")
+##clin_tsv_path = "/Applications/GeneyWishBuilder/WishBuilder-CLI/RawDatasets/BiomarkerBenchmark_GSE10320/Clinical.tsv"
+##expr_tsv_path = "/Applications/GeneyWishBuilder/WishBuilder-CLI/RawDatasets/BiomarkerBenchmark_GSE10320/Gene_Expression.tsv"
+##clin_fwf_path = os.path.join(tmp_dir, os.path.basename(clin_tsv_path).replace(".tsv", ".fwf"))
+##expr_fwf_path = os.path.join(tmp_dir, os.path.basename(expr_tsv_path).replace(".tsv", ".fwf"))
+##merged_fwf_path = os.path.join(tmp_dir, "Merged.fwf")
 
-print("Converting {}".format(clin_tsv_path))
-convert_tsv_to_fwf(clin_tsv_path, clin_fwf_path)
-print("Converting {}".format(expr_tsv_path))
-convert_tsv_to_fwf(expr_tsv_path, expr_fwf_path)
-print("Merging {} and {}".format(clin_fwf_path, expr_fwf_path))
-merge_fwf_files([clin_fwf_path, expr_fwf_path], merged_fwf_path)
+##print("Converting {}".format(clin_tsv_path))
+##convert_tsv_to_fwf(clin_tsv_path, clin_fwf_path)
+##print("Converting {}".format(expr_tsv_path))
+##convert_tsv_to_fwf(expr_tsv_path, expr_fwf_path)
+##print("Merging {} and {}".format(clin_fwf_path, expr_fwf_path))
+##merge_fwf_files([clin_fwf_path, expr_fwf_path], merged_fwf_path)
 
 tsv_file_path_1 = "TestData/Test1/data.tsv"
 tsv_file_path_2 = "TestData/Test2/data.tsv"
@@ -154,8 +154,8 @@ checkResult("2 groups - group 2 values - search", parser12.search_group("2", "ol
 
 checkResult("No pathways 1", len(parser1.get_pathways()), 0)
 checkResult("No pathways 12", len(parser12.get_pathways()), 0)
-checkResult("Pathways genes1", len(parser_genes1.get_pathways()), 36)
-checkResult("Pathways genes12", len(parser_genes12.get_pathways()), 63)
+checkResult("Pathways genes1", len(parser_genes1.get_pathways()), 31)
+checkResult("Pathways genes12", len(parser_genes12.get_pathways()), 57)
 checkResult("Pathways genes12 - element", parser_genes12.get_pathways()[0], ('AKT phosphorylates targets in the nucleus [reactome]', 2))
 
 checkResult("Get sample column meta", parser1.get_variable_meta(0), (1, ['ID']))

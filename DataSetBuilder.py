@@ -115,11 +115,7 @@ def parse_and_save_column_types(file_path):
     for col_index in range(num_cols):
         column_name = parse_meta_value(cn_handle, mcnl, col_index)
         column_values = [x.rstrip() for x in parse_column_values(data_handle, num_rows, col_coords, ll, 0, col_index)]
-
-        if column_name.rstrip() == b"Sample":
-            column_type = b"i"
-        else:
-            column_type = parse_column_type(column_values)
+        column_type = parse_column_type(column_name, column_values)
 
         column_types.append(column_type)
         column_descriptions.append(get_column_description(column_type, column_values))
@@ -138,28 +134,40 @@ def parse_and_save_column_types(file_path):
     cc_handle.close()
     cn_handle.close()
 
-def parse_column_type(values):
+def parse_column_type(name, values):
+    if name == b"Sample":
+        return b"i"
+
     unique_values = set(values)
 
+    has_non_number = False
     for x in unique_values:
-        if not fastnumbers.isfloat(x):
-            return b"d" # Discrete
+        if x != b"" and x != b"NA" and not fastnumbers.isfloat(x):
+            has_non_number = True
+            break
+
+    if has_non_number:
+        if len(unique_values) == len(values):
+            return b"i" #ID
+        else:
+            return b"d" #Discrete
 
     return b"n" # Numeric
 
 def get_column_description(column_type, column_values):
+    if len(column_values) == 0:
+        return "1|NA".encode()
+
     if column_type == b"i":
-        return b"1|ID" # At least for now, we don't want to store all the IDs in the description file.
+        return "{}|ID".format(len(column_values)).encode() # It doesn't make sense to store all the IDs in the description file.
 
     if column_type == b"n":
         float_values = [float(x) for x in column_values if len(x) > 0]
         return "{:.8f},{:.8f}".format(min(float_values), max(float_values)).encode()
 
-    if len(column_values) == 0:
-        return "1|NA".encode()
-    else:
-        unique_values = sorted([x.decode() for x in set(column_values)])
-        return "{}|{}".format(len(unique_values), ",".join(unique_values)).encode()
+    # Discrete
+    unique_values = sorted([x.decode() for x in set(column_values)])
+    return "{}|{}".format(len(unique_values), ",".join(unique_values)).encode()
 
 def format_string(x, size):
     formatted = "{:<" + str(size) + "}"

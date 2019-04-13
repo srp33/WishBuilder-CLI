@@ -158,16 +158,17 @@ checkResult("Pathways genes1", len(parser_genes1.get_pathways()), 31)
 checkResult("Pathways genes12", len(parser_genes12.get_pathways()), 57)
 checkResult("Pathways genes12 - element", parser_genes12.get_pathways()[0], ('AKT phosphorylates targets in the nucleus [reactome]', 2))
 
-checkResult("Get sample column meta", parser1.get_variable_meta(0), (1, ['ID']))
+checkResult("Get sample column meta", parser1.get_variable_meta(0), (4, ['1', '2', '3', '4']))
 checkResult("Get num column meta", parser1.get_variable_meta(1), (1.1, 4.4))
 checkResult("Get discrete column meta", parser1.get_variable_meta(3), (3, ['High', 'Low', 'Med']))
 checkResult("Get discrete column meta - beyond max", parser1.get_variable_meta(3, max_discrete_options=2), (3, None))
 
-checkResult("Check sample column options", parser1.search_discrete_variable_options(0, search_str=None, max_discrete_options=100), ['ID'])
-checkResult("Check sample column options2", parser1.search_discrete_variable_options(3, search_str=None, max_discrete_options=100), ['High', 'Low', 'Med'])
-checkResult("Check sample column options2 - max", parser1.search_discrete_variable_options(3, search_str=None, max_discrete_options=3), ['High', 'Low', 'Med'])
-checkResult("Check sample column options2 - beyond max", parser1.search_discrete_variable_options(3, search_str=None, max_discrete_options=2), ['High', 'Low'])
-checkResult("Check sample column options - search", parser1.search_discrete_variable_options(3, search_str="d", max_discrete_options=2), ['Med'])
+checkResult("Check sample column options", parser1.search_variable_options(0, search_str=None, max_discrete_options=100), ['1', '2', '3', '4'])
+checkResult("Check sample column options2", parser1.search_variable_options(0, search_str="1", max_discrete_options=100), ['1'])
+checkResult("Check discrete column options2", parser1.search_variable_options(3, search_str=None, max_discrete_options=100), ['High', 'Low', 'Med'])
+checkResult("Check discrete column options2 - max", parser1.search_variable_options(3, search_str=None, max_discrete_options=3), ['High', 'Low', 'Med'])
+checkResult("Check discrete column options2 - beyond max", parser1.search_variable_options(3, search_str=None, max_discrete_options=2), ['High', 'Low'])
+checkResult("Check discrete column options - search", parser1.search_variable_options(3, search_str="d", max_discrete_options=2), ['Med'])
 
 parser1.clean_up(max_age_seconds=0)
 parser1.save_sample_indices_matching_filters([], [])
@@ -175,11 +176,9 @@ checkResult("Clean up", parser1.clean_up(max_age_seconds=0), 1)
 
 print("Passed all tests!!")
 
-#TODO: Change parse_column_type() in DataSetBuilder() so that it checks whether all values are unique
-#      and specifies "i" if that's the case. Then deal with this properly in get_column_description().
-#TODO: If you get "ID" for the column description in the options functions, pull the options for that column from the FWF file.
+#TODO: Change methods in DataSetParser to static methods.
 #TODO: Remove commented cleanup lines in WishBuilder.py.
-#TODO: Provide a way to stream a file?
 #TODO: Process GSE10320 using the updated code.
+#TODO: Provide a way to stream a file?
 #TODO: Put data in pandas DataFrame and use ShapeShifter (?) to convert to other formats.
 #TODO: Build markdown files, etc. https://github.com/ercsuh/ercsuh.github.io

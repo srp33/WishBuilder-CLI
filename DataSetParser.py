@@ -253,7 +253,10 @@ class DataSetParser:
             min_max = [float(x) for x in description_parts[0].split(",")]
             return min_max[0], min_max[1]
 
-        discrete_options = list(islice(self.isplit(description_parts[1], ","), max_discrete_options + 1))
+        if description_parts[1] == "ID":
+            discrete_options = list(islice(self.search_id(column_index), max_discrete_options + 1))
+        else:
+            discrete_options = list(islice(self.isplit(description_parts[1], ","), max_discrete_options + 1))
 
         if len(discrete_options) > max_discrete_options:
             return int(description_parts[0]), None
@@ -262,13 +265,20 @@ class DataSetParser:
 
     # This function returns options for the specified discrete variable.
     # Note: If you search for options for the Sample column, it will just return "ID".
-    def search_discrete_variable_options(self, column_index, search_str=None, max_discrete_options=100):
+    def search_variable_options(self, column_index, search_str, max_discrete_options=100):
         description_raw = self.get_variable_description(column_index)
         description_parts = description_raw.split("|")
 
-        matches = self.isplit(description_parts[1], ",")
-        if search_str:
-            matches = (x for x in self.isplit(description_parts[1], ",") if search_str in x)
+        if description_parts[1] == "ID":
+            matches = islice(self.search_id(column_index), max_discrete_options + 1)
+
+            if search_str:
+                matches = islice(self.search_id(column_index, search_str), max_discrete_options + 1)
+        else:
+            matches = (x for x in self.isplit(description_parts[1], ","))
+
+            if search_str:
+                matches = (x for x in self.isplit(description_parts[1], ",") if search_str in x)
 
         return list(islice(matches, max_discrete_options))
 
@@ -315,6 +325,27 @@ class DataSetParser:
             # See https://stackoverflow.com/questions/18591778/how-to-pass-an-operator-to-a-python-function
             if operator_dict[the_filter.operator](fastnumbers.float(value), the_filter.query_value):
                 yield row_index
+
+    def search_id(self, column_index, search_str=None):
+        data_handle = openReadFile(self.data_file_path)
+        ll = readIntFromFile(self.data_file_path, ".ll")
+        cc_handle = openReadFile(self.data_file_path, ".cc")
+        mccl = readIntFromFile(self.data_file_path, ".mccl")
+        num_rows = self.num_samples
+
+        col_coords = list(parse_data_coords([column_index], cc_handle, mccl))
+
+        for row_index in range(num_rows):
+            value = next(parse_data_values(row_index, ll, col_coords, data_handle)).rstrip().decode()
+
+            if search_str:
+                if search_str in value:
+                    yield value
+            else:
+                yield value
+
+        data_handle.close()
+        cc_handle.close()
 
     def parse_values_for_group(self, file_extension, group_name, search_str, max_num):
         values = []

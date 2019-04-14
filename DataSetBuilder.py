@@ -69,18 +69,24 @@ def convert_tsv_to_fwf(tsv_file_path, fwf_file_path):
         my_file.readline()
 
         with open(fwf_file_path, 'wb') as out_file:
-            num_rows = 0
+            out_lines = []
+            chunk_size = 1000
+
             for line in my_file:
-                num_rows += 1
                 line_items = line.rstrip(b"\n").split(b"\t")
 
                 line_out = b""
                 for i in sorted(column_size_dict.keys()):
                     line_out += format_string(line_items[i], column_size_dict[i])
 
-                # This newline character is unnecessary, so it adds a bit of disk space.
-                # However, it makes the files much more readable to humans.
-                out_file.write(line_out + b"\n")
+                out_lines.append(line_out)
+
+                if len(out_lines) % chunk_size == 0:
+                    out_file.write(b"\n".join(out_lines) + b"\n")
+                    out_lines = []
+
+            if len(out_lines) > 0:
+                out_file.write(b"\n".join(out_lines) + b"\n")
 
     parse_and_save_column_types(fwf_file_path)
 
@@ -117,6 +123,9 @@ def parse_and_save_column_types(file_path):
         column_values = [x.rstrip() for x in parse_column_values(data_handle, num_rows, col_coords, ll, 0, col_index)]
         column_type = parse_column_type(column_name, column_values)
 
+        if col_index % 100 == 0:
+            print("Finding column type and description - {}".format(col_index))
+
         column_types.append(column_type)
         column_descriptions.append(get_column_description(column_type, column_values))
 
@@ -138,16 +147,17 @@ def parse_column_type(name, values):
     if name == b"Sample":
         return b"i"
 
-    unique_values = set(values)
+    non_missing_values = [x for x in values if x != b"" and x != b"NA"]
+    unique_values = set(non_missing_values)
 
     has_non_number = False
     for x in unique_values:
-        if x != b"" and x != b"NA" and not fastnumbers.isfloat(x):
+        if not fastnumbers.isfloat(x):
             has_non_number = True
             break
 
     if has_non_number:
-        if len(unique_values) == len(values):
+        if len(unique_values) == len(non_missing_values):
             return b"i" #ID
         else:
             return b"d" #Discrete
@@ -155,18 +165,20 @@ def parse_column_type(name, values):
     return b"n" # Numeric
 
 def get_column_description(column_type, column_values):
-    if len(column_values) == 0:
-        return "1|NA".encode()
-
     if column_type == b"i":
         return "{}|ID".format(len(column_values)).encode() # It doesn't make sense to store all the IDs in the description file.
 
+    non_missing_values = [x for x in column_values if x != b"" and x != b"NA"]
+
+    if len(non_missing_values) == 0:
+        return "1|NA".encode()
+
     if column_type == b"n":
-        float_values = [float(x) for x in column_values if len(x) > 0]
+        float_values = [float(x) for x in non_missing_values]
         return "{:.8f},{:.8f}".format(min(float_values), max(float_values)).encode()
 
     # Discrete
-    unique_values = sorted([x.decode() for x in set(column_values)])
+    unique_values = sorted([x.decode() for x in set(non_missing_values)])
     return "{}|{}".format(len(unique_values), ",".join(unique_values)).encode()
 
 def format_string(x, size):

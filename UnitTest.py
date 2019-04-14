@@ -44,6 +44,11 @@ tmp_dir = sys.argv[1]
 ##print("Merging {} and {}".format(clin_fwf_path, expr_fwf_path))
 ##merge_fwf_files([clin_fwf_path, expr_fwf_path], merged_fwf_path)
 
+#TODO: Work through bug with NA values. Test on /Applications/GeneyWishBuilder/WishBuilder-CLI/GeneDatasets/Gene_Expression.tsv and Metadata.tsv.
+#convert_tsv_to_fwf("/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Metadata.tsv", "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Metadata.fwf")
+convert_tsv_to_fwf("/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Gene_Expression.tsv", "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Gene_Expression.fwf")
+sys.exit()
+
 tsv_file_path_1 = "TestData/Test1/data.tsv"
 tsv_file_path_2 = "TestData/Test2/data.tsv"
 tsv_file_path_genes_1 = "TestData/Genes1/data.tsv"
@@ -177,6 +182,13 @@ parser1.save_sample_indices_matching_filters([], [])
 checkResult("Clean up", parser1.clean_up(max_age_seconds=0), 1)
 
 print("Passed all tests!!")
+
+#TODO: Work through bug with NA values. Test on /Applications/GeneyWishBuilder/WishBuilder-CLI/GeneDatasets/Gene_Expression.tsv and Metadata.tsv.
+#TODO: Reduce memory when iterating through data to find column types and descriptions.
+#      Remove print statement in parse_and_save_column_types function.
+#TODO: Clean up WishBuilder.py so that it doesn't store TSV files in /Applications/GeneyWishBuilder/WishBuilder-CLI/GeneDatasets.
+#        Consider also getting rid of RawDatasets directory (or testing). Only copy to GeneyDatasets at the very end?
+#        gzip the tsv files converting them to fwf files?
 
 #TODO: Provide a way to stream a file?
 #TODO: Put data in pandas DataFrame and use ShapeShifter (?) to convert to other formats.

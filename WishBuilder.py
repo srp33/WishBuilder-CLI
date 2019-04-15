@@ -81,10 +81,6 @@ def test(pr: PullRequest, sql_dao):
         sql_dao.update(pr)
 
         start = time.time()
-        raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
-
-        if not os.path.exists(test_dir):
-            os.makedirs(test_dir)
 
         passed = check_changed_files(git_dao.get_files_changed(pr), pr)
 
@@ -118,6 +114,7 @@ def test(pr: PullRequest, sql_dao):
                 data_passed = check_test_for_every_data(pr, tsv_file_paths, test_file_paths)
 
                 if tsv_passed and data_passed:
+                    raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
                     shutil.rmtree(raw_data_storage, ignore_errors=True)
                     os.mkdir(raw_data_storage)
 

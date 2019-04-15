@@ -435,6 +435,8 @@ def merge_fwf_files(in_file_paths, out_file_path):
 
     # Output the merged data values and meta values
     with open(out_file_path, 'wb') as out_file:
+        chunk_size = 1000
+        out_lines = []
         for i, sample_id in enumerate(all_sample_ids):
             out_line = format_string(sample_id, longest_sample_id)
 
@@ -442,10 +444,17 @@ def merge_fwf_files(in_file_paths, out_file_path):
                 meta = in_file_meta[in_file_path]
                 out_line += parse_row_for_sample(meta, sample_id, meta["col_coords"][1:]).rstrip(b"\n")
 
-            out_file.write(out_line + b"\n")
+            out_lines.append(out_line)
+
+            if len(out_lines) % chunk_size == 0:
+                out_file.write(b"\n".join(out_lines) + b"\n")
+                out_lines = []
 
             if i == 0:
                 writeStringToFile(out_file_path, ".ll", str(len(out_line) + 1).encode())
+
+        if len(out_lines) > 0:
+            out_file.write(b"\n".join(out_lines) + b"\n")
 
     # Save num rows and cols
     writeStringToFile(out_file_path, ".nrow", str(len(all_sample_ids)).encode())

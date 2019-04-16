@@ -69,6 +69,7 @@ def test(pr: PullRequest, sql_dao):
 
     try:
         test_dir = os.path.join(TESTING_LOCATION, pr.branch)
+        raw_data_storage = os.path.join(RAW_DATA_STORAGE, pr.branch)
 
         shutil.rmtree(test_dir, ignore_errors=True)
         os.mkdir(test_dir)

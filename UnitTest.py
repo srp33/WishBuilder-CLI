@@ -46,8 +46,31 @@ tmp_dir = sys.argv[1]
 
 #convert_tsv_to_fwf("/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Metadata.tsv", "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Metadata.fwf")
 #convert_tsv_to_fwf("/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Gene_Expression.tsv", "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Gene_Expression.fwf")
-merge_fwf_files(["/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Metadata.fwf", "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Gene_Expression.fwf"], "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/data.fwf")
-sys.exit()
+#merge_fwf_files(["/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Metadata.fwf", "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/Gene_Expression.fwf"], "/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/data.fwf")
+#parser = DataSetParser("/Applications/GeneyWishBuilder/WishBuilder-CLI/GeneyDatasets/LINCS_PhaseI_Level3/data.fwf")
+#print(parser.id)
+#print(parser.title)
+#print(parser.num_samples)
+#print(parser.num_features)
+#print(parser.total_datapoints)
+#print(parser.get_groups())
+#print(parser.search_group("Gene_Expression", search_str="BRCA", max_num=100))
+#print(parser.get_pathways())
+#print(parser.get_variable_meta(0, max_discrete_options=100))
+#print(parser.get_variable_meta(1, max_discrete_options=100))
+#print(parser.get_variable_meta(12334, max_discrete_options=100))
+#print(parser.get_variable_meta(12335, max_discrete_options=100))
+#print(parser.search_variable_options(0, search_str="A", max_discrete_options=100))
+#print(parser.search_variable_options(12335, search_str="F", max_discrete_options=100))
+#num_rows, sample_temp = parser.save_sample_indices_matching_filters([DiscreteFilter(12335, ["F"])], [NumericFilter(1, ">", 11.4)])
+#print(num_rows)
+#num_cols, col_temp, col_temp2 = parser.save_column_indices_to_select([1,2,3], ["Metadata"], ["Metabolic pathways [kegg]"])
+#print(num_rows)
+#print(num_rows * num_cols)
+#parser.build_output_file(sample_temp, col_temp, col_temp2, "/Applications/tmp/1", "tsv")
+#parser.clean_up()
+
+#sys.exit()
 
 tsv_file_path_1 = "TestData/Test1/data.tsv"
 tsv_file_path_2 = "TestData/Test2/data.tsv"
@@ -183,10 +206,11 @@ checkResult("Clean up", parser1.clean_up(max_age_seconds=0), 1)
 
 print("Passed all tests!!")
 
-#TODO: In LINCS_PhaseI_Level3, is the sample column first?
 #TODO: Clean up WishBuilder.py so that it doesn't store TSV files in /Applications/GeneyWishBuilder/WishBuilder-CLI/GeneDatasets.
 #        Consider also getting rid of RawDatasets directory (or testing). Only copy to GeneyDatasets at the very end?
-#        gzip the tsv files converting them to fwf files?
+#        gzip the tsv files before converting them to fwf files?
+#TODO: Remove featureDescription and featureDescription plural DataBuilder and DataParser.
+#      Change .yaml files to markdown files that just have the title for all datasets.
 #TODO: Provide a way to stream a file?
 #TODO: Put data in pandas DataFrame and use ShapeShifter (?) to convert to other formats.
 #TODO: Build markdown files, etc. https://github.com/ercsuh/ercsuh.github.io

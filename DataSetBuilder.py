@@ -484,7 +484,7 @@ def build_metadata(data_dir_path, fwf_file_path):
         writeStringToFile(fwf_file_path, ".description", md_file.read().strip())
 
     with open(yaml_file_path, 'rb') as yaml_file:
-        for entry in ("title", "featureDescription", "featureDescriptionPlural"):
+        for entry in ("title"):
             writeStringToFile(fwf_file_path, "." + entry, parse_yaml_entry(yaml_file, entry))
 
     writeStringToFile(fwf_file_path, ".id", dataset_id.encode())

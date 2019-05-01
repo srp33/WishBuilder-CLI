@@ -123,7 +123,7 @@ def parse_and_save_column_types(file_path):
         column_values = [x.rstrip() for x in parse_column_values(data_handle, num_rows, col_coords, ll, 0, col_index)]
         column_type = parse_column_type(column_name, column_values)
 
-        if col_index % 100 == 0:
+        if col_index > 0 and col_index % 100 == 0:
             print("Finding column type and description - {}".format(col_index))
 
         column_types.append(column_type)
@@ -465,7 +465,7 @@ def merge_fwf_files(in_file_paths, out_file_path):
             if key.endswith("_handle"):
                 value.close()
 
-def parse_yaml_entry(yaml_file, entry):
+def parse_yaml_entry(yaml_file, entry, yaml_file_path):
     # We'll just parse the file manually, don't need YAML parser for this.
     value = yaml_file.readline().decode().rstrip("\n").replace("{}: ".format(entry), "").strip().encode()
 
@@ -484,8 +484,7 @@ def build_metadata(data_dir_path, fwf_file_path):
         writeStringToFile(fwf_file_path, ".description", md_file.read().strip())
 
     with open(yaml_file_path, 'rb') as yaml_file:
-        for entry in ("title"):
-            writeStringToFile(fwf_file_path, "." + entry, parse_yaml_entry(yaml_file, entry))
+        writeStringToFile(fwf_file_path, ".title", parse_yaml_entry(yaml_file, "title", yaml_file_path))
 
     writeStringToFile(fwf_file_path, ".id", dataset_id.encode())
     writeStringToFile(fwf_file_path, ".timestamp", str(time.time()).encode())
